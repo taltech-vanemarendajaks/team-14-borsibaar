@@ -22,7 +22,7 @@ async function fetchUser(req: NextRequest) {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (!['/login', '/dashboard', '/onboarding'].some(p => pathname.startsWith(p))) {
+  if (!['/login', '/dashboard', '/onboarding', '/pos'].some(p => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -36,12 +36,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protected routes: /dashboard, /onboarding
+  // Protected routes: /dashboard, /onboarding, /pos
   if (!user) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  if (pathname.startsWith('/dashboard') && user.needsOnboarding) {
+  if ((pathname.startsWith('/dashboard') || pathname.startsWith('/pos')) && user.needsOnboarding) {
     return NextResponse.redirect(new URL('/onboarding', req.url));
   }
 
@@ -53,5 +53,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/login', '/dashboard/:path*', '/onboarding/:path*'],
+  matcher: ['/login', '/dashboard/:path*', '/onboarding/:path*', '/pos/:path*'],
 };
