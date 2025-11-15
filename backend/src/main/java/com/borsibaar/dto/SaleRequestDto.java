@@ -9,5 +9,7 @@ import java.util.List;
 public record SaleRequestDto(
                 @NotEmpty(message = "Sale items cannot be empty") @Size(max = 100, message = "Cannot process more than 100 items in a single sale") @Valid List<SaleItemRequestDto> items,
 
-                String notes) {
+                String notes,
+                
+                Long barStationId) {
 }

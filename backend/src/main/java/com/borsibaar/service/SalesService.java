@@ -38,7 +38,8 @@ public class SalesService {
 
                 // Process each item in the sale
                 for (SaleItemRequestDto item : request.items()) {
-                        SaleItemResponseDto saleItem = processSaleItem(item, userId, organizationId, saleId);
+                        SaleItemResponseDto saleItem = processSaleItem(item, userId, organizationId, saleId,
+                                        request.barStationId());
                         saleItems.add(saleItem);
                         totalAmount = totalAmount.add(saleItem.totalPrice());
                 }
@@ -52,7 +53,7 @@ public class SalesService {
         }
 
         private SaleItemResponseDto processSaleItem(SaleItemRequestDto item, UUID userId, Long organizationId,
-                        String saleId) {
+                        String saleId, Long barStationId) {
                 // Verify product exists and belongs to organization
                 Product product = productRepository.findById(item.productId())
                                 .orElseThrow(() -> new ResponseStatusException(
@@ -113,7 +114,7 @@ public class SalesService {
                 // Create sale transaction
                 createSaleTransaction(inventory, item.quantity(),
                                 oldQuantity, newQuantity, priceBeforeSale, priceAfterSale,
-                                saleId, userId);
+                                saleId, userId, barStationId);
 
                 return new SaleItemResponseDto(
                                 item.productId(),
@@ -126,7 +127,7 @@ public class SalesService {
         private void createSaleTransaction(Inventory inventory, BigDecimal quantity,
                         BigDecimal quantityBefore, BigDecimal quantityAfter,
                         BigDecimal priceBefore, BigDecimal priceAfter,
-                        String saleId, UUID userId) {
+                        String saleId, UUID userId, Long barStationId) {
                 InventoryTransaction transaction = new InventoryTransaction();
                 transaction.setInventory(inventory);
                 transaction.setTransactionType("SALE");
@@ -138,6 +139,7 @@ public class SalesService {
                 transaction.setReferenceId(saleId);
                 transaction.setNotes("POS Sale");
                 transaction.setCreatedBy(userId);
+                transaction.setBarStationId(barStationId);
                 transaction.setCreatedAt(OffsetDateTime.now());
                 inventoryTransactionRepository.save(transaction);
         }

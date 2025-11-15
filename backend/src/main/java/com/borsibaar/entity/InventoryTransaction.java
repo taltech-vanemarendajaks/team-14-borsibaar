@@ -51,10 +51,17 @@ public class InventoryTransaction {
     @Column(name = "created_by")
     private UUID createdBy;
 
+    @Column(name = "bar_station_id")
+    private Long barStationId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inventory_id")
     private Inventory inventory;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bar_station_id", insertable = false, updatable = false)
+    private BarStation barStation;
 }
