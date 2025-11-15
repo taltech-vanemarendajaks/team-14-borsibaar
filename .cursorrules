@@ -1,0 +1,316 @@
+# Borsibaar Project Cursor Rules
+
+## Project Overview
+
+Borsibaar is a fullstack web application for managing stock/inventory in a bar/restaurant context ("börsibaari" in Estonian means "stock bar"). The system follows a multi-tenant architecture where each organization manages its own products, inventory, categories, and users.
+
+**Tech Stack:**
+
+- **Backend**: Spring Boot 3.5.5, Java 21, PostgreSQL, Liquibase, MapStruct, Lombok
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Radix UI
+- **Infrastructure**: Docker Compose for development
+- **Authentication**: OAuth2 (Google) + JWT tokens
+
+## Backend Architecture & Patterns
+
+### Package Structure
+
+```
+com.borsibaar/
+├── controller/     # REST API endpoints (@RestController)
+├── service/       # Business logic (@Service, @Transactional)
+├── repository/    # Spring Data JPA repositories
+├── entity/        # JPA entities (Lombok @Entity, @Builder)
+├── dto/           # Request/Response DTOs (Java records)
+├── mapper/        # MapStruct mappers (@Mapper componentModel="spring")
+├── config/        # Spring configuration classes
+└── exception/     # Custom exceptions + @RestControllerAdvice
+```
+
+### Entity Patterns
+
+- Use Lombok annotations: `@Getter`, `@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Builder`
+- Use `@CreationTimestamp` and `@UpdateTimestamp` for audit fields
+- Use `UUID` for primary keys (generated)
+- Use `Long` for organization IDs (multi-tenant isolation)
+- Use `CITEXT` for case-insensitive string fields (names)
+- Always include `organizationId` for multi-tenant data isolation
+
+### Service Layer Patterns
+
+- Use `@Service` and `@RequiredArgsConstructor` (Lombok constructor injection)
+- Use `@Transactional` for write operations, `@Transactional(readOnly = true)` for reads
+- Throw `ResponseStatusException` for business logic errors
+- Use custom exceptions: `NotFoundException`, `DuplicateResourceException`, `BadRequestException`
+- Always validate organization ownership before operations
+- Use MapStruct mappers to convert between entities and DTOs
+
+### Controller Patterns
+
+- Use `@RestController` with `@RequestMapping("/api/...")`
+- Extract JWT token from `@CookieValue(name = "jwt")`
+- Use `ResponseEntity<T>` for responses
+- Return appropriate HTTP status codes (200, 201, 204, 400, 401, 404, 409, 500)
+- Use record classes for request/response DTOs when simple
+- Validate organization membership before accessing resources
+
+### Exception Handling
+
+- Global exception handler: `ApiExceptionHandler` with `@RestControllerAdvice`
+- Returns `ProblemDetail` (RFC 7807) with status, title, detail, timestamp, path
+- Custom exceptions extend `RuntimeException`
+- Validation errors return detailed field-level error messages
+- Database constraint violations return 409 CONFLICT
+
+### Database & Migrations
+
+- **CRITICAL**: All schema changes in single file: `db/changelog/db.changelog-master.yaml`
+- Use Liquibase changesets with descriptive names
+- Number changesets sequentially (000-, 001-, etc.)
+- Use PostgreSQL-specific features: CITEXT, TIMESTAMPTZ, CHECK constraints
+- Never modify existing changesets - always add new ones
+
+### MapStruct Mappers
+
+- Use `@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)`
+- Define custom mapping methods with `@Named` for complex conversions
+- Ignore fields that shouldn't be mapped: `@Mapping(target = "id", ignore = true)`
+- Use `@Mapping` annotations for field-level customizations
+
+## Frontend Architecture & Patterns
+
+### Next.js App Router Structure
+
+```
+app/
+├── (public)/          # Public routes (login)
+├── (protected)/       # Protected routes (dashboard, inventory, pos)
+│   ├── (sidebar)/     # Routes with sidebar layout
+│   └── client/        # Client-specific routes
+├── api/               # Next.js API routes (proxy to backend)
+│   └── backend/       # Backend proxy routes
+└── layout.tsx         # Root layout
+```
+
+### API Route Patterns
+
+- All backend communication goes through Next.js API routes in `app/api/backend/`
+- API routes proxy requests to backend, forwarding cookies for authentication
+- Pattern: `app/api/backend/{resource}/route.ts` mirrors backend endpoints
+- Always forward `Cookie` header from request
+- Handle errors gracefully, return appropriate status codes
+- Use `NEXT_PUBLIC_BACKEND_URL` environment variable (default: `http://localhost:8080`)
+
+### Authentication & Middleware
+
+- JWT tokens stored in HTTP-only cookies
+- `middleware.ts` handles route protection and onboarding flow
+- Protected routes: `/dashboard`, `/onboarding`, `/pos`
+- Public routes: `/login`
+- Middleware checks JWT via `/api/account` endpoint
+- Redirects: unauthenticated → `/login`, needs onboarding → `/onboarding`
+
+### Component Patterns
+
+- Use Radix UI components from `components/ui/`
+- Use Tailwind CSS for styling (v4 with PostCSS)
+- Use TypeScript with strict mode
+- Use SWR for data fetching (`swr` package)
+- Use `lucide-react` for icons
+- Path aliases: `@/*` maps to project root
+
+### TypeScript Conventions
+
+- Strict mode enabled
+- Use interfaces/types for API responses
+- Prefer `async/await` over promises
+- Handle errors with try/catch in API routes
+- Use Next.js types: `NextRequest`, `NextResponse`
+
+## Development Workflow
+
+### Docker Development
+
+**CRITICAL**: Backend runs entirely in Docker containers. All backend operations must use Docker.
+
+```bash
+# Start full environment
+docker compose up
+
+# Start specific services
+docker compose up postgres backend
+
+# Run backend commands
+docker compose exec backend ./mvnw test
+docker compose exec backend ./mvnw clean package
+docker compose exec backend ./mvnw spring-boot:run
+
+# View logs
+docker compose logs -f backend
+
+# Access container shell
+docker compose exec backend bash
+```
+
+### Backend Commands
+
+```bash
+# Run tests (in Docker)
+docker compose exec backend ./mvnw test
+
+# Build (in Docker)
+docker compose exec backend ./mvnw clean package
+
+# Run application (in Docker)
+docker compose exec backend ./mvnw spring-boot:run
+```
+
+### Frontend Commands
+
+```bash
+# Development server (with Turbopack)
+cd frontend && npm run dev
+
+# Build for production
+cd frontend && npm run build
+
+# Start production server
+cd frontend && npm start
+
+# Lint code
+cd frontend && npm run lint
+```
+
+## Code Conventions
+
+### Java/Spring Boot
+
+- Use Java 21 features (records, pattern matching, etc.)
+- Prefer constructor injection over field injection
+- Use `@RequiredArgsConstructor` from Lombok
+- Use `Optional` for nullable return values
+- Use `BigDecimal` for monetary values and quantities
+- Use `Instant` or `OffsetDateTime` for timestamps
+- Validate input in service layer, not just controller
+- Always check organization ownership before operations
+
+### TypeScript/React
+
+- Use functional components with hooks
+- Prefer `async/await` over `.then()`
+- Use TypeScript strict mode
+- Export types/interfaces explicitly
+- Use Next.js App Router conventions
+- Handle loading and error states in components
+- Use SWR for client-side data fetching
+
+### Naming Conventions
+
+- **Java**: PascalCase for classes, camelCase for methods/variables
+- **TypeScript**: PascalCase for components/types, camelCase for functions/variables
+- **Files**: kebab-case for Next.js routes, PascalCase for React components
+- **Database**: snake_case for table/column names
+
+## Multi-Tenant Architecture
+
+**CRITICAL**: All data operations must respect organization boundaries.
+
+- Every entity (except `Organization` and `Role`) has `organizationId`
+- Always filter queries by `organizationId`
+- Validate organization membership before any operation
+- Users belong to one organization (`User.organizationId`)
+- Never expose data from other organizations
+- Use `@Transactional` to ensure atomic operations
+
+## Testing Guidelines
+
+### Backend Tests
+
+- Use `@SpringBootTest` for integration tests
+- Use `@DataJpaTest` for repository tests
+- Mock services in controller tests
+- Test organization isolation
+- Run tests via Docker: `docker compose exec backend ./mvnw test`
+
+### Frontend Tests
+
+- Test components with React Testing Library (if added)
+- Test API routes with mock backend responses
+- Test middleware redirects and authentication
+
+## Common Patterns
+
+### Creating a New Feature
+
+**Backend:**
+
+1. Create entity (if needed) with Liquibase migration
+2. Create repository interface extending `JpaRepository`
+3. Create DTOs (request/response records)
+4. Create MapStruct mapper
+5. Create service with business logic
+6. Create controller with REST endpoints
+7. Add exception handling if needed
+
+**Frontend:**
+
+1. Create API route in `app/api/backend/{resource}/route.ts`
+2. Create page component in `app/(protected)/{route}/page.tsx`
+3. Use SWR for data fetching
+4. Create UI components using Radix UI + Tailwind
+
+### Error Handling
+
+- Backend: Use `ProblemDetail` (RFC 7807) format
+- Frontend: Handle errors in API routes, return appropriate status codes
+- Display user-friendly error messages in UI
+- Log errors server-side for debugging
+
+## Environment Variables
+
+### Backend (.env)
+
+- `SPRING_DATASOURCE_URL` - PostgreSQL connection string
+- `SPRING_DATASOURCE_USERNAME` - Database username
+- `SPRING_DATASOURCE_PASSWORD` - Database password
+- `GOOGLE_CLIENT_ID` - OAuth2 Google client ID
+- `GOOGLE_CLIENT_SECRET` - OAuth2 Google client secret
+- `JWT_SECRET` - JWT token signing key
+
+### Frontend (.env.local)
+
+- `NEXT_PUBLIC_BACKEND_URL` - Backend API URL (default: `http://localhost:8080`)
+
+## Important Notes
+
+1. **Docker First**: Backend development must happen in Docker containers
+2. **Multi-Tenant**: Always validate organization ownership
+3. **Migrations**: Never modify existing Liquibase changesets
+4. **Authentication**: JWT tokens in HTTP-only cookies, validated on every request
+5. **Type Safety**: Use TypeScript strictly, avoid `any` types
+6. **Error Handling**: Use consistent error formats (ProblemDetail backend, JSON frontend)
+7. **Transactions**: Use `@Transactional` for write operations
+8. **Validation**: Validate in service layer, not just controller
+
+## Key Dependencies
+
+### Backend
+
+- Spring Boot 3.5.5
+- Spring Data JPA, Security, OAuth2 Client
+- PostgreSQL driver
+- Liquibase
+- MapStruct 1.6.3
+- Lombok 1.18.30
+- JWT (jjwt 0.13.0)
+- Spring DotEnv 4.0.0
+
+### Frontend
+
+- Next.js 15.5.4 (with Turbopack)
+- React 19.1.1
+- TypeScript 5
+- Tailwind CSS v4
+- Radix UI components
+- SWR 2.3.6
+- Lucide React (icons)
