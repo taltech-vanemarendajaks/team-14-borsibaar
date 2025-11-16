@@ -297,7 +297,6 @@ export default function POSStation() {
           <div className="order-1 lg:order-2 lg:w-80">
             <CartSidebar
               cart={cart}
-              currentUser={currentUser}
               isProcessingSale={isProcessingSale}
               onUpdateQuantity={updateCartQuantity}
               onRemoveItem={removeFromCart}
