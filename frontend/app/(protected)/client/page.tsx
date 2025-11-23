@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import React, { useEffect, useState } from "react";
 import Chart from "./Chart";
+import Image from "next/image";
 
 type Category = { id: number; name: string; organizationId?: number };
 export type InvDto = {
@@ -112,9 +113,11 @@ export default function ClientProductsByCategory() {
       <div className="w-full">
         {/* HEADER – LOGO + tekst */}
         <header className="flex flex-col items-center justify-center gap-2 text-center">
-          <img
+          <Image
             src="/tudengibaarlogo.png"
             alt="Tudengibaar"
+            width={925}
+            height={270}
             className="w-64 md:w-72 lg:w-90 xl:w-150 px-3 object-contain" 
           />
         </header>
@@ -269,9 +272,11 @@ export default function ClientProductsByCategory() {
                 key={s.name}
                 className="flex items-center justify-center h-10 w-30 md:w-32"
               >
-                <img
+                <Image
                   src={s.logo}
                   alt={s.name}
+                  width={120}
+                  height={40}
                   className="max-h-10 max-w-full object-contain opacity-90 hover:opacity-100 transition-opacity"
                 />
               </div>
