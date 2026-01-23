@@ -50,15 +50,17 @@ public class InventoryService {
             inventories = inventoryRepository.findByOrganizationId(organizationId);
         }
 
+        Map<Long, Product> productsMap = productRepository
+                .findAllById(inventories.stream().map(Inventory::getProductId).toList())
+                .stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+
         return inventories.stream()
                 .map(inv -> {
                     InventoryResponseDto base = inventoryMapper.toResponse(inv);
-                    Product product = productRepository.findById(inv.getProductId())
-                            .orElse(null);
+                    Product product = productsMap.get(inv.getProductId());
 
-                    if (product == null)
-                        return null;
-                    if (!product.isActive()) {
+                    if (product == null || !product.isActive()) {
                         return null;
                     }
 
