@@ -93,7 +93,9 @@ export default function LoginPage() {
               />
             </div>
 
-            <p className="mt-5 text-sm font-medium text-white/70">Logi sisse</p>
+            <p className="mt-5 text-base font-semibold tracking-wide text-white/85">
+              Logi sisse
+            </p>
 
             <a
               href={`${publicBackendUrl}/oauth2/authorization/google`}
