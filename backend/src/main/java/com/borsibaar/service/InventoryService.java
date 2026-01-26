@@ -50,7 +50,7 @@ public class InventoryService {
             inventories = inventoryRepository.findByOrganizationId(organizationId);
         }
 
-        Map<Long, Product> productsMap = productRepository
+        var productsMap = productRepository
                 .findAllById(inventories.stream().map(Inventory::getProductId).toList())
                 .stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
@@ -458,25 +458,18 @@ public class InventoryService {
 
 
     private BigDecimal calculateTotalRevenue(List<InventoryTransaction> userStationTransactions) {
-        return userStationTransactions.stream()
-                .map(transaction -> {
-                    // Get inventory to find product
-                    return inventoryRepository
-                            .findById(transaction.getInventoryId())
-                            .flatMap(inventory -> productRepository
-                                    .findById(inventory
-                                            .getProductId()))
-                            .map(product -> {
-                                // Calculate revenue for this
-                                // transaction
-                                BigDecimal quantitySold = transaction
-                                        .getQuantityChange()
-                                        .abs();
-                                return product.getBasePrice()
-                                        .multiply(quantitySold);
-                            })
-                            .orElse(BigDecimal.ZERO);
+        var transactionIds = userStationTransactions.stream()
+                .map(InventoryTransaction::getId)
+                .toList();
+
+        return productRepository.findRevenueData(transactionIds)
+                .stream()
+                .map(row -> {
+                    BigDecimal basePrice = (BigDecimal) row[0];
+                    BigDecimal quantityChange = ((BigDecimal) row[1]).abs();
+                    return basePrice.multiply(quantityChange);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
 }

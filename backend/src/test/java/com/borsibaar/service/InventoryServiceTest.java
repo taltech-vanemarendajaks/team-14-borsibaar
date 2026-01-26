@@ -124,8 +124,7 @@ class InventoryServiceTest {
         when(inventoryRepository.findByOrganizationId(1L)).thenReturn(List.of(inv1, inv2));
         Product p1 = new Product(); p1.setId(10L); p1.setActive(true); p1.setBasePrice(BigDecimal.ONE); p1.setName("A");
         Product p2 = new Product(); p2.setId(11L); p2.setActive(false); p2.setBasePrice(BigDecimal.ONE); p2.setName("B");
-        when(productRepository.findById(10L)).thenReturn(Optional.of(p1));
-        when(productRepository.findById(11L)).thenReturn(Optional.of(p2));
+        when(productRepository.findAllById(List.of(10L, 11L))).thenReturn(List.of(p1, p2));
         when(inventoryMapper.toResponse(inv1)).thenReturn(new InventoryResponseDto(1L,1L,10L,"A",BigDecimal.ONE,BigDecimal.ONE, "abc", null,null,null,OffsetDateTime.now().toString()));
         List<InventoryResponseDto> result = inventoryService.getByOrganization(1L);
         assertEquals(1, result.size());
@@ -194,24 +193,23 @@ class InventoryServiceTest {
         UUID uid = UUID.randomUUID();
         Long stationId = 7L;
         // two transactions for same user/station, different inventories
-        InventoryTransaction t1 = new InventoryTransaction(); t1.setInventoryId(11L); t1.setTransactionType("SALE"); t1.setReferenceId("o1"); t1.setQuantityChange(new BigDecimal("-2")); t1.setCreatedBy(uid); t1.setBarStationId(stationId);
-        InventoryTransaction t2 = new InventoryTransaction(); t2.setInventoryId(12L); t2.setTransactionType("SALE"); t2.setReferenceId("o2"); t2.setQuantityChange(new BigDecimal("-1")); t2.setCreatedBy(uid); t2.setBarStationId(stationId);
+        InventoryTransaction t1 = new InventoryTransaction(); t1.setId(1L); t1.setInventoryId(11L); t1.setTransactionType("SALE"); t1.setReferenceId("o1"); t1.setQuantityChange(new BigDecimal("-2")); t1.setCreatedBy(uid); t1.setBarStationId(stationId);
+        InventoryTransaction t2 = new InventoryTransaction(); t2.setId(2L); t2.setInventoryId(12L); t2.setTransactionType("SALE"); t2.setReferenceId("o2"); t2.setQuantityChange(new BigDecimal("-1")); t2.setCreatedBy(uid); t2.setBarStationId(stationId);
         when(inventoryTransactionRepository.findSaleTransactionsByOrganizationId(orgId)).thenReturn(List.of(t1, t2));
 
         // inventories map to products with base prices
         Inventory inv1 = new Inventory(); inv1.setId(11L); inv1.setProductId(101L);
         Inventory inv2 = new Inventory(); inv2.setId(12L); inv2.setProductId(102L);
-        when(inventoryRepository.findById(11L)).thenReturn(Optional.of(inv1));
-        when(inventoryRepository.findById(12L)).thenReturn(Optional.of(inv2));
         Product p1 = new Product(); p1.setId(101L); p1.setBasePrice(new BigDecimal("3.00"));
         Product p2 = new Product(); p2.setId(102L); p2.setBasePrice(new BigDecimal("5.00"));
-        when(productRepository.findById(101L)).thenReturn(Optional.of(p1));
-        when(productRepository.findById(102L)).thenReturn(Optional.of(p2));
 
         User user = new User(); user.setId(uid); user.setName("Bob"); user.setEmail("b@c.d");
         when(userRepository.findAllById(anyList())).thenReturn(List.of(user));
         BarStation station = new BarStation(); station.setId(stationId); station.setName("Main");
         when(barStationRepository.findAllById(anyList())).thenReturn(List.of(station));
+        when(productRepository.findRevenueData(List.of(1L, 2L))).thenReturn(
+                List.of(new Object[] {p1.getBasePrice(), t1.getQuantityChange()}, new Object[] {p2.getBasePrice(), t2.getQuantityChange()})
+        );
 
         List<UserSalesStatsResponseDto> stats = inventoryService.getUserSalesStats(orgId);
         assertEquals(1, stats.size());
@@ -226,18 +224,17 @@ class InventoryServiceTest {
     void getStationSalesStats_ComputesCountsAndRevenue() {
         Long orgId = 1L;
         Long stationId = 7L;
-        InventoryTransaction t1 = new InventoryTransaction(); t1.setInventoryId(11L); t1.setTransactionType("SALE"); t1.setReferenceId("o1"); t1.setQuantityChange(new BigDecimal("-2")); t1.setBarStationId(stationId);
-        InventoryTransaction t2 = new InventoryTransaction(); t2.setInventoryId(12L); t2.setTransactionType("SALE"); t2.setReferenceId("o2"); t2.setQuantityChange(new BigDecimal("-1")); t2.setBarStationId(stationId);
+        InventoryTransaction t1 = new InventoryTransaction(); t1.setId(1L); t1.setInventoryId(11L); t1.setTransactionType("SALE"); t1.setReferenceId("o1"); t1.setQuantityChange(new BigDecimal("-2")); t1.setBarStationId(stationId);
+        InventoryTransaction t2 = new InventoryTransaction(); t2.setId(2L); t2.setInventoryId(12L); t2.setTransactionType("SALE"); t2.setReferenceId("o2"); t2.setQuantityChange(new BigDecimal("-1")); t2.setBarStationId(stationId);
         when(inventoryTransactionRepository.findSaleTransactionsByOrganizationId(orgId)).thenReturn(List.of(t1, t2));
 
         Inventory inv1 = new Inventory(); inv1.setId(11L); inv1.setProductId(101L);
         Inventory inv2 = new Inventory(); inv2.setId(12L); inv2.setProductId(102L);
-        when(inventoryRepository.findById(11L)).thenReturn(Optional.of(inv1));
-        when(inventoryRepository.findById(12L)).thenReturn(Optional.of(inv2));
         Product p1 = new Product(); p1.setId(101L); p1.setBasePrice(new BigDecimal("3.00"));
         Product p2 = new Product(); p2.setId(102L); p2.setBasePrice(new BigDecimal("5.00"));
-        when(productRepository.findById(101L)).thenReturn(Optional.of(p1));
-        when(productRepository.findById(102L)).thenReturn(Optional.of(p2));
+        when(productRepository.findRevenueData(List.of(1L, 2L))).thenReturn(
+          List.of(new Object[] {p1.getBasePrice(), t1.getQuantityChange()}, new Object[] {p2.getBasePrice(), t2.getQuantityChange()})
+        );
 
         BarStation station = new BarStation(); station.setId(stationId); station.setName("Main");
         when(barStationRepository.findAllById(anyList())).thenReturn(List.of(station));
