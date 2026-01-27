@@ -3,6 +3,7 @@ package com.borsibaar.repository;
 import com.borsibaar.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -35,4 +36,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
           )
       """, nativeQuery = true)
   List<Product> findByActiveOrgAndInactiveSalesLastMinute();
+
+  @Query(value = """
+        SELECT p.base_price, it.quantity_change
+        FROM inventory_transactions it
+        JOIN inventory i ON it.inventory_id = i.id
+        JOIN products p ON i.product_id = p.id
+        WHERE it.id IN :transactionIds
+  """, nativeQuery = true)
+  List<Object[]> findRevenueData(@Param("transactionIds") List<Long> transactionIds);
 }
