@@ -103,13 +103,16 @@ export default function PriceHistoryGraphFancy({
   }, []);
 
   const rotateOnce = useCallback(() => {
-    const flat = flatten(groupsRef.current).filter(p => p.unitPrice != p.basePrice);
+    const flat = flatten(groupsRef.current).filter(
+      (p) => p.unitPrice != p.basePrice,
+    );
     if (flat.length === 0) return;
     const cur = activeProductRef.current;
     let nextIdx: number;
     if (cur) {
       const i = flat.findIndex((p) => p.productId === cur.productId);
-      nextIdx = i >= 0 ? (i + 1) % flat.length : activeIdxRef.current % flat.length;
+      nextIdx =
+        i >= 0 ? (i + 1) % flat.length : activeIdxRef.current % flat.length;
     } else {
       nextIdx = activeIdxRef.current % flat.length;
     }
@@ -150,12 +153,11 @@ export default function PriceHistoryGraphFancy({
     const firstBefore = hist.find(
       (h) => Number.isFinite(h.before) && h.before !== 0,
     )?.before;
-    const base =
-      (firstBefore ??
-        product?.basePrice ??
-        product.unitPrice ??
-        hist[0]?.after ??
-        0) as number;
+    const base = (firstBefore ??
+      product?.basePrice ??
+      product.unitPrice ??
+      hist[0]?.after ??
+      0) as number;
 
     const out: { date: Date; price: number }[] = [];
     if (hist.length === 0) {
@@ -181,7 +183,12 @@ export default function PriceHistoryGraphFancy({
 
   // ---- WINDOW: last 1 hour + delta ----
   const HOURS_WINDOW = 1;
-  const { data: windowed, cutoff, now, delta } = useMemo(() => {
+  const {
+    data: windowed,
+    cutoff,
+    now,
+    delta,
+  } = useMemo(() => {
     const _now = new Date();
     const _cutoff = new Date(_now.getTime() - HOURS_WINDOW * 3600_000);
     if (!series.length)
@@ -208,7 +215,8 @@ export default function PriceHistoryGraphFancy({
   // ---------- D3 drawing ----------
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const money = useMemo(
-    () => new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" }),
+    () =>
+      new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" }),
     [],
   );
 
@@ -217,7 +225,7 @@ export default function PriceHistoryGraphFancy({
     d3.select(wrapRef.current).selectAll("*").remove();
 
     const w = wrapRef.current.clientWidth;
-    const h = window.innerHeight * 0.60; //Math.max(320, Math.round(w * 0.48));
+    const h = window.innerHeight * 0.6; //Math.max(320, Math.round(w * 0.48));
     const margin = { top: 56, right: 32, bottom: 56, left: 80 };
 
     const svg = d3
@@ -240,12 +248,12 @@ export default function PriceHistoryGraphFancy({
     bgGrad
       .append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", "#18152b")
+      .attr("stop-color", "#0b0f1a")
       .attr("stop-opacity", 1);
     bgGrad
       .append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", "#141326")
+      .attr("stop-color", "#070A12")
       .attr("stop-opacity", 1);
 
     const r = 20;
@@ -333,10 +341,7 @@ export default function PriceHistoryGraphFancy({
           .attr("stroke-width", 0.8),
       )
       .call((s) =>
-        s
-          .selectAll("text")
-          .attr("fill", "#cdd6f4")
-          .style("font-size", "11px"),
+        s.selectAll("text").attr("fill", "#cdd6f4").style("font-size", "11px"),
       )
       .call((s) =>
         s
@@ -360,10 +365,7 @@ export default function PriceHistoryGraphFancy({
           .attr("stroke-width", 0.8),
       )
       .call((s) =>
-        s
-          .selectAll("text")
-          .attr("fill", "#cdd6f4")
-          .style("font-size", "11px"),
+        s.selectAll("text").attr("fill", "#cdd6f4").style("font-size", "11px"),
       )
       .call((s) =>
         s
@@ -422,7 +424,10 @@ export default function PriceHistoryGraphFancy({
       .y1((d) => y(d.price))
       .curve(d3.curveStepAfter);
 
-    g.append("path").datum(windowed).attr("d", area).attr("fill", "url(#areaBlue)");
+    g.append("path")
+      .datum(windowed)
+      .attr("d", area)
+      .attr("fill", "url(#areaBlue)");
 
     g.append("path")
       .datum(windowed)
@@ -444,7 +449,6 @@ export default function PriceHistoryGraphFancy({
     //   change === 0
     //     ? "0.0%"
     //     : `${change > 0 ? "+" : "-"}${Math.abs(changePct).toFixed(1)}%`;
-
   }, [windowed, cutoff, now, delta, current?.productInv?.productName, money]);
 
   return (
