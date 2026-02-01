@@ -119,7 +119,7 @@ public class SalesService {
 
                 // Create sale transaction
                 createSaleTransaction(inventory, item.quantity(),
-                                oldQuantity, newQuantity, priceBeforeSale, priceAfterSale,
+                                newQuantity, priceBeforeSale, priceAfterSale,
                                 saleId, userId, barStationId);
 
                 return new SaleItemResponseDto(
@@ -131,14 +131,12 @@ public class SalesService {
         }
 
         private void createSaleTransaction(Inventory inventory, BigDecimal quantity,
-                        BigDecimal quantityBefore, BigDecimal quantityAfter,
-                        BigDecimal priceBefore, BigDecimal priceAfter,
+                        BigDecimal quantityAfter, BigDecimal priceBefore, BigDecimal priceAfter,
                         String saleId, UUID userId, Long barStationId) {
                 InventoryTransaction transaction = new InventoryTransaction();
                 transaction.setInventory(inventory);
                 transaction.setTransactionType("SALE");
                 transaction.setQuantityChange(quantity.negate()); // Negative for sales
-                transaction.setQuantityBefore(quantityBefore);
                 transaction.setQuantityAfter(quantityAfter);
                 transaction.setPriceBefore(priceBefore);
                 transaction.setPriceAfter(priceAfter);

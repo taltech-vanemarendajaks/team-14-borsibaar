@@ -30,9 +30,6 @@ public class InventoryTransaction {
     @Column(name = "quantity_change", nullable = false, precision = 19, scale = 4)
     private BigDecimal quantityChange;
 
-    @Column(name = "quantity_before", nullable = false, precision = 19, scale = 4)
-    private BigDecimal quantityBefore;
-
     @Column(name = "quantity_after", nullable = false, precision = 19, scale = 4)
     private BigDecimal quantityAfter;
 
