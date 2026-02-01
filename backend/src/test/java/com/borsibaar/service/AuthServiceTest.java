@@ -60,6 +60,7 @@ class AuthServiceTest {
         Role defaultRole = Role.builder().id(10L).name("USER").build();
         when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
         when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtService.generateToken("new@test.com")).thenReturn("jwt-token");
         when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
