@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -52,7 +54,8 @@ class AuthServiceTest {
                 List.of(new SimpleGrantedAuthority("ROLE_USER")),
                 Map.of("email", "new@test.com", "name", "New User"),
                 "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                "google");
 
         Role defaultRole = Role.builder().id(10L).name("USER").build();
         when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
@@ -78,8 +81,9 @@ class AuthServiceTest {
     }
 
     @Test
-    void processOAuthLogin_ExistingUser_UpdatesNameAndReturnsToken() {
-        User existing = User.builder().email("exist@test.com").name("Old Name").role(Role.builder().id(1L).name("USER").build()).build();
+    void processOAuthLogin_ExistingUser_PreservesExistingName() {
+        User existing = User.builder().email("exist@test.com").name("Old Name")
+                .role(Role.builder().id(1L).name("USER").build()).build();
         when(userRepository.findByEmail("exist@test.com")).thenReturn(Optional.of(existing));
         when(jwtService.generateToken("exist@test.com")).thenReturn("jwt-token");
         when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
@@ -91,13 +95,14 @@ class AuthServiceTest {
                 List.of(new SimpleGrantedAuthority("ROLE_USER")),
                 Map.of("email", "exist@test.com", "name", "Updated Name"),
                 "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                "google");
 
         AuthService.AuthResult result = authService.processOAuthLogin(token);
 
         assertEquals("exist@test.com", result.dto().email());
-        assertEquals("Updated Name", result.dto().name());
-        verify(userRepository).save(existing);
+        assertEquals("Old Name", result.dto().name());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -106,11 +111,12 @@ class AuthServiceTest {
                 List.of(new SimpleGrantedAuthority("ROLE_USER")),
                 Map.of("email", "fail@test.com", "name", "Fail User"),
                 "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                "google");
 
         when(userRepository.findByEmail("fail@test.com")).thenReturn(Optional.empty());
         when(roleRepository.findByName("USER")).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> authService.processOAuthLogin(token));
+        assertThrows(IllegalStateException.class, () -> authService.processOAuthLogin(token));
     }
 }
