@@ -4,6 +4,7 @@ import clsx from "clsx";
 import React, { useEffect, useState } from "react";
 import Chart from "./Chart";
 import Image from "next/image";
+import Link from "next/link";
 
 type Category = { id: number; name: string; organizationId?: number };
 export type InvDto = {
@@ -234,11 +235,14 @@ export default function ClientProductsByCategory() {
         <section className="rounded-2xl border border-[#2a2640] bg-[#1b1830] p-4 flex flex-col gap-4">
           <header className="flex flex-col gap-2 text-center justify-between pb-4">
             <div className="max-h-[130px] w-full flex justify-center">
-              <img
-                src="/tudengibaarlogo.png"
-                alt="Tudengibaar"
-                className="h-full object-contain"
-              /></div>
+              <Link href="/dashboard" className="cursor-pointer hover:opacity-80 transition-opacity">
+                  <Image
+                      src="/tudengibaarlogo.png"
+                      alt="Tudengibaar"
+                      className="h-full object-contain"
+                  />
+              </Link>
+            </div>
           </header>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg md:text-xl font-semibold tracking-wide">
