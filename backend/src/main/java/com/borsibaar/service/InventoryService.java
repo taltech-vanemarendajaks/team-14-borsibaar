@@ -138,8 +138,7 @@ public class InventoryService {
                     return inventoryRepository.save(newInv);
                 });
 
-        BigDecimal oldQuantity = inventory.getQuantity();
-        BigDecimal newQuantity = oldQuantity.add(request.quantity());
+        BigDecimal newQuantity = inventory.getQuantity().add(request.quantity());
 
         inventory.setQuantity(newQuantity);
         inventory.setUpdatedAt(OffsetDateTime.now());
@@ -150,7 +149,7 @@ public class InventoryService {
 
         // Create transaction record
         createTransaction(inventory, "PURCHASE", request.quantity(),
-                oldQuantity, newQuantity, currentPrice, currentPrice, null, request.notes(), userId);
+                newQuantity, currentPrice, currentPrice, null, request.notes(), userId);
 
         InventoryResponseDto base = inventoryMapper.toResponse(inventory);
         return new InventoryResponseDto(
@@ -194,7 +193,7 @@ public class InventoryService {
 
         // Create transaction record (negative quantity change)
         createTransaction(inventory, "ADJUSTMENT", request.quantity().negate(),
-                oldQuantity, newQuantity, currentPrice, currentPrice, request.referenceId(),
+                newQuantity, currentPrice, currentPrice, request.referenceId(),
                 request.notes(), userId);
 
         InventoryResponseDto base = inventoryMapper.toResponse(inventory);
@@ -220,8 +219,7 @@ public class InventoryService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No inventory found for this product"));
 
-        BigDecimal oldQuantity = inventory.getQuantity();
-        BigDecimal quantityChange = request.newQuantity().subtract(oldQuantity);
+        BigDecimal quantityChange = request.newQuantity().subtract(inventory.getQuantity());
 
         inventory.setQuantity(request.newQuantity());
         inventory.setUpdatedAt(OffsetDateTime.now());
@@ -232,7 +230,7 @@ public class InventoryService {
 
         // Create transaction record
         createTransaction(inventory, "ADJUSTMENT", quantityChange,
-                oldQuantity, request.newQuantity(), currentPrice, currentPrice, null, request.notes(),
+                request.newQuantity(), currentPrice, currentPrice, null, request.notes(),
                 userId);
 
         InventoryResponseDto base = inventoryMapper.toResponse(inventory);
@@ -274,12 +272,13 @@ public class InventoryService {
         return transactions.stream()
                 .map(transaction -> {
                     User user = userMap.get(transaction.getCreatedBy());
+                    BigDecimal quantityAfter = transaction.getQuantityAfter().subtract(transaction.getQuantityChange());
                     return new InventoryTransactionResponseDto(
                             transaction.getId(),
                             transaction.getInventoryId(),
                             transaction.getTransactionType(),
                             transaction.getQuantityChange(),
-                            transaction.getQuantityBefore(),
+                            quantityAfter,
                             transaction.getQuantityAfter(),
                             transaction.getPriceBefore(),
                             transaction.getPriceAfter(),
@@ -422,14 +421,12 @@ public class InventoryService {
     }
 
     private void createTransaction(Inventory inventory, String type, BigDecimal quantityChange,
-                                   BigDecimal quantityBefore, BigDecimal quantityAfter,
-                                   BigDecimal priceBefore, BigDecimal priceAfter,
-                                   String referenceId, String notes, UUID userId) {
+                                   BigDecimal quantityAfter, BigDecimal priceBefore,
+                                   BigDecimal priceAfter, String referenceId, String notes, UUID userId) {
         InventoryTransaction transaction = new InventoryTransaction();
         transaction.setInventory(inventory);
         transaction.setTransactionType(type);
         transaction.setQuantityChange(quantityChange);
-        transaction.setQuantityBefore(quantityBefore);
         transaction.setQuantityAfter(quantityAfter);
         transaction.setPriceBefore(priceBefore);
         transaction.setPriceAfter(priceAfter);

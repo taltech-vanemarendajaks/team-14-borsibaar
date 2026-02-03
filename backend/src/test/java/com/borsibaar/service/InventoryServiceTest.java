@@ -174,7 +174,7 @@ class InventoryServiceTest {
         UUID uid = UUID.randomUUID();
         InventoryTransaction tx = new InventoryTransaction();
         tx.setId(1L); tx.setInventory(inv); tx.setInventoryId(inv.getId()); tx.setTransactionType("SALE");
-        tx.setQuantityChange(new BigDecimal("-1")); tx.setQuantityBefore(BigDecimal.TEN); tx.setQuantityAfter(new BigDecimal("9"));
+        tx.setQuantityChange(new BigDecimal("-1")); tx.setQuantityAfter(new BigDecimal("9"));
         tx.setPriceBefore(BigDecimal.ONE); tx.setPriceAfter(BigDecimal.ONE); tx.setReferenceId("ref"); tx.setNotes("n");
         tx.setCreatedBy(uid); tx.setCreatedAt(OffsetDateTime.now());
         when(inventoryTransactionRepository.findByInventoryIdOrderByCreatedAtDesc(100L)).thenReturn(List.of(tx));
