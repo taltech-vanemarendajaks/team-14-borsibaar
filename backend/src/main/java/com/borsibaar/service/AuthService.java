@@ -8,6 +8,7 @@ import com.borsibaar.repository.RoleRepository;
 import com.borsibaar.repository.UserRepository;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -27,26 +28,33 @@ public class AuthService {
         this.roleRepository = roleRepository;
     }
 
+    @Transactional
     public AuthResult processOAuthLogin(OAuth2AuthenticationToken auth) {
         String email = auth.getPrincipal().getAttribute("email");
         String name = auth.getPrincipal().getAttribute("name");
 
         // Check if user exists or create a new one
         User user = userRepository.findByEmail(email)
-                .orElse(User.builder()
-                        .email(email)
-                        .name(name)
-                        .build());
+                .orElseGet(() -> {
+                    // Create new user with default role
+                    Role defaultRole = roleRepository.findByName("USER")
+                            .orElseThrow(() -> new IllegalStateException("Default role USER not found"));
 
-        // Default role assignment (if new user)
-        if (user.getRole() == null) {
-            Role defaultRole = roleRepository.findByName("USER")
-                    .orElseThrow(() -> new IllegalArgumentException("Default role USER not found"));
-            user.setRole(defaultRole);
+                    User newUser = User.builder()
+                            .email(email)
+                            .name(name)
+                            .role(defaultRole)
+                            .build();
+
+                    return userRepository.save(newUser);
+                });
+
+        // Only update name if it was previously null or empty (preserve user
+        // customizations)
+        if (user.getName() == null || user.getName().isEmpty()) {
+            user.setName(name);
+            userRepository.save(user);
         }
-
-        user.setName(name); // update name in case it changed
-        userRepository.save(user);
 
         // Issue JWT
         String token = jwtService.generateToken(user.getEmail());

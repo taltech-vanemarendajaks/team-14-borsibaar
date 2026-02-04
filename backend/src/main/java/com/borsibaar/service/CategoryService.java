@@ -11,8 +11,8 @@ import com.borsibaar.repository.CategoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 @Service
 public class CategoryService {
@@ -47,26 +47,19 @@ public class CategoryService {
         return categoryMapper.toResponse(saved);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CategoryResponseDto> getAllByOrg(Long organizationId) {
         Iterable<Category> categories = categoryRepository.findAllByOrganizationId(organizationId);
 
-        List<CategoryResponseDto> responseDtos = new ArrayList<>();
-        for (Category category : categories) {
-            responseDtos.add(categoryMapper.toResponse(category));
-        }
-
-        return responseDtos;
+        return StreamSupport.stream(categories.spliterator(), false)
+                .map(categoryMapper::toResponse)
+                .toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CategoryResponseDto getByIdAndOrg(Long id, Long organizationId) {
         return categoryRepository.findByIdAndOrganizationId(id, organizationId)
-                .map(category -> {
-                    CategoryResponseDto dto = categoryMapper.toResponse(category);
-                    categoryRepository.findById(id);
-                    return dto;
-                })
+                .map(categoryMapper::toResponse)
                 .orElseThrow(() -> new NotFoundException("Category not found: " + id));
     }
 

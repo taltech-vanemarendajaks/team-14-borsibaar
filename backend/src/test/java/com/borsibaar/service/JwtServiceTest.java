@@ -3,7 +3,7 @@ package com.borsibaar.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
@@ -26,12 +27,21 @@ class JwtServiceTest {
     @MockitoBean
     private ClientRegistrationRepository clientRegistrationRepository;
 
+    // Must be at least 32 bytes (256 bits) for HS256
     private final String testSecret = "test-secret-key-for-jwt-testing-purposes-at-least-256-bits";
+    private SecretKey testSigningKey;
 
     @BeforeEach
     void setUp() {
-        // Set test secret key using reflection to avoid environment variable dependency
+        // Set test secret key using reflection
         ReflectionTestUtils.setField(jwtService, "secretKey", testSecret);
+        ReflectionTestUtils.setField(jwtService, "expirationMs", 86400000L);
+
+        // Call init() to initialize the signing key
+        jwtService.init();
+
+        // Create matching signing key for manual token creation in tests
+        testSigningKey = Keys.hmacShaKeyFor(testSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -125,7 +135,7 @@ class JwtServiceTest {
 
     @Test
     void testParseToken_ExpiredToken_ThrowsExpiredJwtException() {
-        // Arrange: Create an expired token manually
+        // Arrange: Create an expired token using the same signing key
         String email = "test@example.com";
         Date past = new Date(System.currentTimeMillis() - 10000); // 10 seconds ago
         Date morePast = new Date(System.currentTimeMillis() - 20000); // 20 seconds ago
@@ -134,7 +144,7 @@ class JwtServiceTest {
                 .subject(email)
                 .issuedAt(morePast)
                 .expiration(past)
-                .signWith(SignatureAlgorithm.HS256, testSecret.getBytes(StandardCharsets.UTF_8))
+                .signWith(testSigningKey) // Use the same key as JwtService
                 .compact();
 
         // Act & Assert
@@ -143,15 +153,16 @@ class JwtServiceTest {
 
     @Test
     void testParseToken_TokenWithDifferentSecret_ThrowsException() {
-        // Arrange: Create token with different secret
+        // Arrange: Create token with different secret (must also be 32+ bytes)
         String email = "test@example.com";
-        String differentSecret = "different-secret-key-should-fail-validation-here";
+        String differentSecret = "different-secret-key-that-is-also-at-least-32-bytes-long";
+        SecretKey differentKey = Keys.hmacShaKeyFor(differentSecret.getBytes(StandardCharsets.UTF_8));
 
         String tokenWithDifferentSecret = Jwts.builder()
                 .subject(email)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 86400000))
-                .signWith(SignatureAlgorithm.HS256, differentSecret.getBytes(StandardCharsets.UTF_8))
+                .signWith(differentKey)
                 .compact();
 
         // Act & Assert
@@ -195,5 +206,16 @@ class JwtServiceTest {
     void testParseToken_NullToken_ThrowsException() {
         // Act & Assert
         assertThrows(Exception.class, () -> jwtService.parseToken(null));
+    }
+
+    @Test
+    void testInit_SecretKeyTooShort_ThrowsException() {
+        // Arrange
+        JwtService newJwtService = new JwtService();
+        ReflectionTestUtils.setField(newJwtService, "secretKey", "short");
+        ReflectionTestUtils.setField(newJwtService, "expirationMs", 86400000L);
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, newJwtService::init);
     }
 }
