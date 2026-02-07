@@ -238,6 +238,8 @@ export default function ClientProductsByCategory() {
               <Link href="/dashboard" className="cursor-pointer hover:opacity-80 transition-opacity">
                   <Image
                       src="/tudengibaarlogo.png"
+                      width={308}
+                      height={90}
                       alt="Tudengibaar"
                       className="h-full object-contain"
                   />
