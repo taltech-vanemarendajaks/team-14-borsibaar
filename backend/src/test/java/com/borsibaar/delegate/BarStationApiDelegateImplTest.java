@@ -1,8 +1,6 @@
 package com.borsibaar.delegate;
 
 import com.borsibaar.dto.BarStationRequestDto;
-import com.borsibaar.dto.BarStationResponseDto;
-import com.borsibaar.dto.UserSummaryResponseDto;
 import com.borsibaar.entity.BarStation;
 import com.borsibaar.entity.Role;
 import com.borsibaar.entity.User;
@@ -482,17 +480,6 @@ class BarStationApiDelegateImplTest {
     }
 
     /**
-     * Helper method to create a mock bar station response DTO.
-     */
-    private BarStationResponseDto createMockStationResponse(Long id, Long organizationId, String name, Boolean isActive) {
-        return new BarStationResponseDto()
-                .id(id)
-                .organizationId(organizationId)
-                .name(name)
-                .isActive(isActive);
-    }
-
-    /**
      * Helper method to create a mock bar station.
      */
     private BarStation createMockStation(Long id, Long organizationId, String name, Boolean isActive) {
@@ -520,23 +507,6 @@ class BarStationApiDelegateImplTest {
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
-    }
-
-    /**
-     * Helper method to create a mock bar station response DTO with assigned users and description.
-     */
-    private BarStationResponseDto createMockStationResponse(
-            Long id, Long organizationId, String name, String description,
-            Boolean isActive, List<UserSummaryResponseDto> assignedUsers) {
-        return new BarStationResponseDto()
-                .id(id)
-                .organizationId(organizationId)
-                .name(name)
-                .description(description)
-                .isActive(isActive)
-                .assignedUsers(assignedUsers)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now());
     }
 
     /**
