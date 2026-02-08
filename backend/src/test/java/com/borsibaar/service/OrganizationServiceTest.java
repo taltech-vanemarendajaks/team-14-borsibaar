@@ -14,12 +14,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrganizationServiceTest {
@@ -34,15 +36,19 @@ class OrganizationServiceTest {
 
     @Test
     void create_SetsCreatedAtAndMaps() {
-        OrganizationRequestDto request = new OrganizationRequestDto("Org", BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
+        var req = new OrganizationRequestDto().name("Org").priceIncreaseStep(BigDecimal.valueOf(0.5))
+                .priceDecreaseStep(BigDecimal.valueOf(0.5));
         Organization entity = new Organization();
-        when(organizationMapper.toEntity(request)).thenReturn(entity);
-        Organization saved = new Organization(); saved.setId(3L); saved.setName("Org"); saved.setCreatedAt(OffsetDateTime.now());
+        when(organizationMapper.toEntity(req)).thenReturn(entity);
+        Organization saved = new Organization(); saved.setId(3L); saved.setName("Org"); saved.setCreatedAt(Instant.now());
         when(organizationRepository.save(entity)).thenReturn(saved);
-        when(organizationMapper.toResponse(saved)).thenReturn(new OrganizationResponseDto(3L, "Org",  saved.getCreatedAt(), saved.getUpdatedAt(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5)));
+        var resp = new OrganizationResponseDto().id(3L).name("Org").createdAt(saved.getCreatedAt())
+                .updatedAt(saved.getUpdatedAt()).priceDecreaseStep(BigDecimal.valueOf(0.5))
+                .priceDecreaseStep(BigDecimal.valueOf(0.5));
+        when(organizationMapper.toResponse(saved)).thenReturn(resp);
 
-        OrganizationResponseDto dto = organizationService.create(request);
-        assertEquals(3L, dto.id());
+        OrganizationResponseDto dto = organizationService.create(req);
+        assertEquals(3L, dto.getId());
         verify(organizationRepository).save(entity);
     }
 
@@ -57,7 +63,9 @@ class OrganizationServiceTest {
     void getAll_ReturnsMappedList() {
         Organization o = new Organization(); o.setId(1L); o.setName("A");
         when(organizationRepository.findAll()).thenReturn(List.of(o));
-        when(organizationMapper.toResponse(o)).thenReturn(new OrganizationResponseDto(1L, "A", null, OffsetDateTime.now(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5)));
+        var resp = new OrganizationResponseDto().id(1L).name("A").createdAt(Instant.now()).updatedAt(Instant.now())
+                .priceDecreaseStep(BigDecimal.valueOf(0.5)).priceDecreaseStep(BigDecimal.valueOf(0.5));
+        when(organizationMapper.toResponse(o)).thenReturn(resp);
         var list = organizationService.getAll();
         assertEquals(1, list.size());
     }

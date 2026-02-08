@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.CategoryRequestDto;
 import com.borsibaar.dto.CategoryResponseDto;
@@ -28,11 +28,12 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class CategoryControllerTest {
+class CategoryApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -56,8 +57,9 @@ class CategoryControllerTest {
         User user = userWithOrg(1L, "ADMIN");
         setAuth(user);
 
-        CategoryRequestDto req = new CategoryRequestDto("Beers", true);
-        CategoryResponseDto resp = new CategoryResponseDto(1L, "Beers", true);
+
+        CategoryRequestDto req = new CategoryRequestDto().name("Beers").dynamicPricing(true);
+        CategoryResponseDto resp = new CategoryResponseDto().id(1L).name("Beers").dynamicPricing(true);
         when(categoryService.create(any(CategoryRequestDto.class), anyLong())).thenReturn(resp);
 
         mockMvc.perform(post("/api/categories")
@@ -87,7 +89,8 @@ class CategoryControllerTest {
         User user = userWithOrg(2L, "USER");
         setAuth(user);
 
-        CategoryResponseDto resp = new CategoryResponseDto(10L, "Wine", true);
+        CategoryResponseDto resp = new CategoryResponseDto().id(10L).name("Wine").dynamicPricing(true);
+
         when(categoryService.getByIdAndOrg(10L, 2L)).thenReturn(resp);
 
         mockMvc.perform(get("/api/categories/10"))

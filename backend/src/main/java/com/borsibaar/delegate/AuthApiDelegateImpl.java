@@ -1,34 +1,43 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
+import com.borsibaar.api.AuthApi;
+import com.borsibaar.dto.LogoutResponseDto;
 import com.borsibaar.service.AuthService;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
+import java.net.URI;
 
+@Slf4j
+@ControllerAdvice
 @RestController
 @RequestMapping("/auth")
-public class AuthController {
+@RequiredArgsConstructor
+public class AuthApiDelegateImpl extends AbstractApiDelegateImpl implements AuthApi {
+
     private final AuthService authService;
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    @GetMapping("/login/success")
-    public void success(HttpServletResponse response, OAuth2AuthenticationToken auth) throws IOException {
+    @Override
+    @SneakyThrows
+    public ResponseEntity<Void> loginSuccess() {
+        OAuth2AuthenticationToken auth = (OAuth2AuthenticationToken)
+                SecurityContextHolder.getContext().getAuthentication();
         var result = authService.processOAuthLogin(auth);
 
-        Cookie cookie = new Cookie("jwt", result.dto().token());
+        Cookie cookie = new Cookie("jwt", result.dto().getToken());
         cookie.setHttpOnly(true);
         cookie.setSecure(true); // HTTPS enabled with domain
         cookie.setPath("/");
@@ -36,11 +45,12 @@ public class AuthController {
         response.addCookie(cookie);
 
         String redirect = result.needsOnboarding() ? "/onboarding" : "/dashboard";
-        response.sendRedirect(frontendUrl + redirect);
+
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(frontendUrl + redirect)).build();
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+    @Override
+    public ResponseEntity<LogoutResponseDto> logoutUser() {
         // Invalidate the server-side session (removes OAuth2 authentication)
         HttpSession session = request.getSession(false);
         if (session != null) {
@@ -58,9 +68,9 @@ public class AuthController {
         jwtCookie.setMaxAge(0); // Expire immediately
         response.addCookie(jwtCookie);
 
-        return ResponseEntity.ok().body(new LogoutResponse("Logged out successfully"));
-    }
+        LogoutResponseDto response = new LogoutResponseDto();
+        response.setMessage("Logged out successfully");
 
-    private record LogoutResponse(String message) {
+        return ResponseEntity.ok(response);
     }
 }

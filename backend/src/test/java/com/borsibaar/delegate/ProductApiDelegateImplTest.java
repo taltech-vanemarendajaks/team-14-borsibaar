@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.ProductRequestDto;
 import com.borsibaar.dto.ProductResponseDto;
@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class ProductControllerTest {
+class ProductApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -61,33 +61,23 @@ class ProductControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create request DTO
-        ProductRequestDto request = new ProductRequestDto(
-                "Test Product",
-                "Test Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                1L);
+        var req = new ProductResponseDto().name("Test Product").description("Test Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(1L);
 
         // Arrange: Create expected response
-        ProductResponseDto response = new ProductResponseDto(
-                1L,
-                "Test Product",
-                "Test Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                1L,
-                "Test Category");
+        var resp = new ProductResponseDto().id(1L).name("Test Product").description("Test Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(1L).categoryName("Test Category");
 
         // Arrange: Mock service
         when(productService.create(any(ProductRequestDto.class), eq(1L)))
-                .thenReturn(response);
+                .thenReturn(resp);
 
         // Act & Assert
         mockMvc.perform(post("/api/products")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Product"))
@@ -109,13 +99,9 @@ class ProductControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create invalid request (missing required fields)
-        ProductRequestDto invalidRequest = new ProductRequestDto(
-                "", // Empty name - should fail validation
-                "Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                1L);
+        var invalidRequest = new ProductResponseDto().name("").description("Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(1L);
 
         // Act & Assert: Expect 400 Bad Request due to validation failure
         mockMvc.perform(post("/api/products")
@@ -131,13 +117,9 @@ class ProductControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create request
-        ProductRequestDto request = new ProductRequestDto(
-                "Duplicate Product",
-                "Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                1L);
+        var request = new ProductResponseDto().name("Duplicate Product").description("Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(1L);
 
         // Arrange: Mock service to throw conflict exception
         when(productService.create(any(ProductRequestDto.class), eq(1L)))
@@ -159,13 +141,9 @@ class ProductControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create request with non-existent category
-        ProductRequestDto request = new ProductRequestDto(
-                "Test Product",
-                "Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                999L); // Non-existent category
+        var request = new ProductResponseDto().name("Test Product").description("Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(999L);
 
         // Arrange: Mock service to throw not found exception
         when(productService.create(any(ProductRequestDto.class), eq(1L)))
@@ -183,18 +161,12 @@ class ProductControllerTest {
     @Test
     void testGetProduct_Success() throws Exception {
         // Arrange: Create expected response
-        ProductResponseDto response = new ProductResponseDto(
-                1L,
-                "Test Product",
-                "Test Description",
-                new BigDecimal("10.00"),
-                new BigDecimal("5.00"),
-                new BigDecimal("20.00"),
-                1L,
-                "Test Category");
+        var resp = new ProductResponseDto().id(1L).name("Test Product").description("Test Description")
+                .currentPrice(new BigDecimal("10.00")).minPrice(new BigDecimal("5.00"))
+                .maxPrice(new BigDecimal("20.00")).categoryId(1L).categoryName("Test Category");
 
         // Arrange: Mock service
-        when(productService.getById(1L)).thenReturn(response);
+        when(productService.getById(1L)).thenReturn(resp);
 
         // Act & Assert
         mockMvc.perform(get("/api/products/1"))

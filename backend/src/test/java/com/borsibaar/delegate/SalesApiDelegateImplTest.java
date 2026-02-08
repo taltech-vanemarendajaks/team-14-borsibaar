@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.SaleItemRequestDto;
 import com.borsibaar.dto.SaleItemResponseDto;
@@ -22,7 +22,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -32,11 +32,12 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class SalesControllerTest {
+class SalesApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,9 +61,13 @@ class SalesControllerTest {
         User user = userWithOrg(1L, "USER");
         setAuth(user);
 
-        SaleRequestDto req = new SaleRequestDto(List.of(new SaleItemRequestDto(10L, new BigDecimal("2"))), "note", 5L);
-        SaleItemResponseDto itemResp = new SaleItemResponseDto(10L, "Cola", new BigDecimal("2"), new BigDecimal("3.00"), new BigDecimal("6.00"));
-        SaleResponseDto resp = new SaleResponseDto("SALE-1", List.of(itemResp), new BigDecimal("6.00"), "note", OffsetDateTime.now());
+        var req = new SaleRequestDto().items(List.of(new SaleItemRequestDto().productId(10L)
+                .quantity(new BigDecimal("2")))).notes("note").barStationId(5L);
+        var item = new SaleItemResponseDto().productId(10L).productName("Cola")
+                .quantity(new BigDecimal("2")).unitPrice(new BigDecimal("3.00"))
+                .totalPrice(new BigDecimal("6.00"));
+        var resp = new SaleResponseDto().saleId("SALE-1").items(List.of(item))
+                .totalAmount(new BigDecimal("6.00")).notes("note").timestamp(Instant.now());
         when(salesService.processSale(any(SaleRequestDto.class), any(UUID.class), anyLong())).thenReturn(resp);
 
         mockMvc.perform(post("/api/sales")

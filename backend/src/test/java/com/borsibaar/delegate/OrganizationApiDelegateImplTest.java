@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.OrganizationRequestDto;
 import com.borsibaar.dto.OrganizationResponseDto;
@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -22,11 +22,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class OrganizationControllerTest {
+class OrganizationApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -42,8 +43,11 @@ class OrganizationControllerTest {
 
     @Test
     void create_ReturnsCreated() throws Exception {
-        OrganizationRequestDto req = new OrganizationRequestDto("Org", BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
-        OrganizationResponseDto resp = new OrganizationResponseDto(1L, "Org", OffsetDateTime.now(), OffsetDateTime.now(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
+        var req = new OrganizationRequestDto().name("Org").priceIncreaseStep(BigDecimal.valueOf(0.5))
+                .priceDecreaseStep(BigDecimal.valueOf(0.5));
+        var resp = new OrganizationResponseDto().id(1L).name("Org").createdAt(Instant.now()).updatedAt(Instant.now())
+                .priceIncreaseStep(BigDecimal.valueOf(0.5)).priceDecreaseStep(BigDecimal.valueOf(0.5));
+
         when(organizationService.create(any(OrganizationRequestDto.class))).thenReturn(resp);
 
         mockMvc.perform(post("/api/organizations")
@@ -58,7 +62,8 @@ class OrganizationControllerTest {
 
     @Test
     void get_ReturnsDto() throws Exception {
-        OrganizationResponseDto resp = new OrganizationResponseDto(2L, "Org2", OffsetDateTime.now(), OffsetDateTime.now(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
+        var resp = new OrganizationResponseDto().id(2L).name("Org2").createdAt(Instant.now()).updatedAt(Instant.now())
+                .priceIncreaseStep(BigDecimal.valueOf(0.5)).priceDecreaseStep(BigDecimal.valueOf(0.5));
         when(organizationService.getById(2L)).thenReturn(resp);
 
         mockMvc.perform(get("/api/organizations/2"))
@@ -71,8 +76,11 @@ class OrganizationControllerTest {
 
     @Test
     void getAll_ReturnsList() throws Exception {
-        OrganizationResponseDto resp1 = new OrganizationResponseDto(1L, "A", OffsetDateTime.now(), OffsetDateTime.now(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
-        OrganizationResponseDto resp2 = new OrganizationResponseDto(2L, "B", OffsetDateTime.now(), OffsetDateTime.now(), BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5));
+        var resp1 = new OrganizationResponseDto().id(1L).name("A").createdAt(Instant.now()).updatedAt(Instant.now())
+                .priceIncreaseStep(BigDecimal.valueOf(0.5)).priceDecreaseStep(BigDecimal.valueOf(0.5));
+        var resp2 = new OrganizationResponseDto().id(2L).name("B").createdAt(Instant.now()).updatedAt(Instant.now())
+                .priceIncreaseStep(BigDecimal.valueOf(0.5)).priceDecreaseStep(BigDecimal.valueOf(0.5));
+
         when(organizationService.getAll()).thenReturn(List.of(resp1, resp2));
 
         mockMvc.perform(get("/api/organizations"))
@@ -84,19 +92,13 @@ class OrganizationControllerTest {
 
     @Test
     void update_ReturnsUpdatedDto() throws Exception {
-        OrganizationRequestDto req = new OrganizationRequestDto(
-                "Updated Org",
-                BigDecimal.valueOf(1.0),
-                BigDecimal.valueOf(0.25)
-        );
-        OrganizationResponseDto resp = new OrganizationResponseDto(
-                5L,
-                "Updated Org",
-                OffsetDateTime.now(),
-                OffsetDateTime.now(),
-                BigDecimal.valueOf(1.0),
-                BigDecimal.valueOf(0.25)
-        );
+        var req = new OrganizationRequestDto().name("Updated Org").priceIncreaseStep(BigDecimal.valueOf(1.0))
+                .priceDecreaseStep(BigDecimal.valueOf(0.25));
+        var resp = new OrganizationResponseDto().id(5L).name("Updated Org").createdAt(Instant.now())
+                .updatedAt(Instant.now()).priceIncreaseStep(BigDecimal.valueOf(1.0))
+                .priceDecreaseStep(BigDecimal.valueOf(0.25));
+
+
         when(organizationService.update(5L, req)).thenReturn(resp);
 
         mockMvc.perform(put("/api/organizations/5")

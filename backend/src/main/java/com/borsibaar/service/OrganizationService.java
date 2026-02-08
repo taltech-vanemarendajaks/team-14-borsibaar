@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -27,7 +27,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationResponseDto create(OrganizationRequestDto request) {
         Organization organization = organizationMapper.toEntity(request);
-        organization.setCreatedAt(OffsetDateTime.now());
+        organization.setCreatedAt(Instant.now());
         organization.setUpdatedAt(organization.getCreatedAt());
         Organization saved = organizationRepository.save(organization);
         return organizationMapper.toResponse(saved);
@@ -54,7 +54,7 @@ public class OrganizationService {
         Organization organization = organizationRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Organization not found: " + id));
         organizationMapper.updateEntity(organization, request);
-        organization.setUpdatedAt(OffsetDateTime.now());
+        organization.setUpdatedAt(Instant.now());
         Organization saved = organizationRepository.save(organization);
         return organizationMapper.toResponse(saved);
     }
