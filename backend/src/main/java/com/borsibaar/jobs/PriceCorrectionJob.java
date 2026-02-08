@@ -73,7 +73,6 @@ public class PriceCorrectionJob {
             transaction.setInventory(inventory);
             transaction.setTransactionType("ADJUSTMENT");
             transaction.setQuantityChange(BigDecimal.ZERO);
-            transaction.setQuantityBefore(inventory.getQuantity());
             transaction.setQuantityAfter(inventory.getQuantity());
             transaction.setPriceBefore(currentPrice);
             transaction.setPriceAfter(newPrice);

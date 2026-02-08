@@ -84,7 +84,6 @@ public class ProductService {
         transaction.setInventory(savedInventory);
         transaction.setTransactionType("INITIAL");
         transaction.setQuantityChange(BigDecimal.ZERO);
-        transaction.setQuantityBefore(BigDecimal.ZERO);
         transaction.setQuantityAfter(BigDecimal.ZERO);
         transaction.setPriceBefore(Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO));
         transaction.setPriceAfter(Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO));
