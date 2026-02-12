@@ -20,7 +20,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceTest {
@@ -37,7 +38,7 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        request = new CategoryRequestDto("  Drinks  ", null);
+        request = new CategoryRequestDto().name("  Drinks  ");
     }
 
     @Test
@@ -50,12 +51,12 @@ class CategoryServiceTest {
         saved.setName("Drinks");
         saved.setDynamicPricing(true);
         when(categoryRepository.save(entity)).thenReturn(saved);
-        when(categoryMapper.toResponse(saved)).thenReturn(new CategoryResponseDto(10L, "Drinks", true));
+        when(categoryMapper.toResponse(saved)).thenReturn(new CategoryResponseDto().id(10L).name("Drinks").dynamicPricing(true));
 
         CategoryResponseDto dto = categoryService.create(request, 1L);
 
-        assertEquals("Drinks", dto.name());
-        assertTrue(dto.dynamicPricing());
+        assertEquals("Drinks", dto.getName());
+        assertTrue(dto.getDynamicPricing());
         ArgumentCaptor<Category> captor = ArgumentCaptor.forClass(Category.class);
         verify(categoryRepository).save(captor.capture());
         assertEquals("Drinks", captor.getValue().getName());
@@ -64,7 +65,7 @@ class CategoryServiceTest {
 
     @Test
     void create_BlankName_ThrowsBadRequest() {
-        CategoryRequestDto bad = new CategoryRequestDto("   ", null);
+        var bad = new CategoryRequestDto().name("   ");
         when(categoryMapper.toEntity(bad)).thenReturn(new Category());
         assertThrows(BadRequestException.class, () -> categoryService.create(bad, 1L));
     }
@@ -81,8 +82,9 @@ class CategoryServiceTest {
         Category c1 = new Category(); c1.setId(1L); c1.setName("A");
         Category c2 = new Category(); c2.setId(2L); c2.setName("B");
         when(categoryRepository.findAllByOrganizationId(1L)).thenReturn(List.of(c1, c2));
-        when(categoryMapper.toResponse(c1)).thenReturn(new CategoryResponseDto(1L, "A", true));
-        when(categoryMapper.toResponse(c2)).thenReturn(new CategoryResponseDto(2L, "B", false));
+        when(categoryMapper.toResponse(c1)).thenReturn(new CategoryResponseDto().id(1L).name("A").dynamicPricing(true));
+        when(categoryMapper.toResponse(c2)).thenReturn(new CategoryResponseDto().id(2L).name("B").dynamicPricing(false));
+
 
         var list = categoryService.getAllByOrg(1L);
         assertEquals(2, list.size());
@@ -98,10 +100,10 @@ class CategoryServiceTest {
     void deleteReturningDto_Success_Deletes() {
         Category cat = new Category(); cat.setId(5L); cat.setName("Del");
         when(categoryRepository.findByIdAndOrganizationId(5L, 1L)).thenReturn(Optional.of(cat));
-        when(categoryMapper.toResponse(cat)).thenReturn(new CategoryResponseDto(5L, "Del", true));
+        when(categoryMapper.toResponse(cat)).thenReturn(new CategoryResponseDto().id(5L).name("Del").dynamicPricing(true));
 
         CategoryResponseDto dto = categoryService.deleteReturningDto(5L, 1L);
-        assertEquals(5L, dto.id());
+        assertEquals(5L, dto.getId());
         verify(categoryRepository).delete(cat);
     }
 }

@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.UserSummaryResponseDto;
 import com.borsibaar.entity.Role;
@@ -11,10 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false) // Disable security filters for simpler testing
-class UserControllerTest {
+class UserApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -93,16 +93,8 @@ class UserControllerTest {
         when(userRepository.findByOrganizationId(1L)).thenReturn(organizationUsers);
 
         // Arrange: Mock mapper to convert users to DTOs
-        UserSummaryResponseDto dto1 = new UserSummaryResponseDto(
-                user1.getId(),
-                user1.getEmail(),
-                user1.getName(),
-                "ADMIN");
-        UserSummaryResponseDto dto2 = new UserSummaryResponseDto(
-                user2.getId(),
-                user2.getEmail(),
-                user2.getName(),
-                "ADMIN");
+        var dto1 = new UserSummaryResponseDto().id(user1.getId()).email(user1.getEmail()).name(user1.getName()).role("ADMIN");
+        var dto2 = new UserSummaryResponseDto().id(user2.getId()).email(user2.getEmail()).name(user2.getName()).role("ADMIN");
 
         when(userMapper.toSummaryDto(user1)).thenReturn(dto1);
         when(userMapper.toSummaryDto(user2)).thenReturn(dto2);

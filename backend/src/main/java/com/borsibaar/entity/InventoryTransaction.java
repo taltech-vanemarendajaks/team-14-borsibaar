@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -52,7 +52,7 @@ public class InventoryTransaction {
     private Long barStationId;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inventory_id")

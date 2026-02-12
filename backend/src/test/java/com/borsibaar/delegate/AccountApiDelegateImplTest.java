@@ -1,4 +1,4 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.entity.Role;
 import com.borsibaar.entity.User;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class AccountControllerTest {
+class AccountApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;

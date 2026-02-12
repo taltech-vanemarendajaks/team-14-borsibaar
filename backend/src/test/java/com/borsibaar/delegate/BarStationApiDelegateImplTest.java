@@ -1,8 +1,7 @@
-package com.borsibaar.controller;
+package com.borsibaar.delegate;
 
 import com.borsibaar.dto.BarStationRequestDto;
-import com.borsibaar.dto.BarStationResponseDto;
-import com.borsibaar.dto.UserSummaryResponseDto;
+import com.borsibaar.entity.BarStation;
 import com.borsibaar.entity.Role;
 import com.borsibaar.entity.User;
 import com.borsibaar.exception.DuplicateResourceException;
@@ -25,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-class BarStationControllerTest {
+class BarStationApiDelegateImplTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -61,9 +61,9 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(adminUser);
 
         // Arrange: Create mock station responses
-        BarStationResponseDto station1 = createMockStationResponse(1L, 1L, "Station 1", true);
-        BarStationResponseDto station2 = createMockStationResponse(2L, 1L, "Station 2", false);
-        List<BarStationResponseDto> stations = List.of(station1, station2);
+        BarStation station1 = createMockStation(1L, 1L, "Station 1", true);
+        BarStation station2 = createMockStation(2L, 1L, "Station 2", false);
+        List<BarStation> stations = List.of(station1, station2);
 
         // Arrange: Mock service
         when(barStationService.getAllStations(1L)).thenReturn(stations);
@@ -117,8 +117,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create mock station responses
-        BarStationResponseDto station1 = createMockStationResponse(1L, 1L, "User Station 1", true);
-        List<BarStationResponseDto> userStations = List.of(station1);
+        BarStation station1 = createMockStation(1L, 1L, "User Station 1", true);
+        List<BarStation> userStations = List.of(station1);
 
         // Arrange: Mock service
         when(barStationService.getUserStations(userId, 1L)).thenReturn(userStations);
@@ -161,7 +161,7 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(user);
 
         // Arrange: Create mock station response
-        BarStationResponseDto station = createMockStationResponse(1L, 1L, "Test Station", true);
+        BarStation station = createMockStation(1L, 1L, "Test Station", true);
 
         // Arrange: Mock service
         when(barStationService.getStationById(1L, 1L)).thenReturn(station);
@@ -204,18 +204,16 @@ class BarStationControllerTest {
         // Arrange: Create request DTO
         UUID userId1 = UUID.randomUUID();
         UUID userId2 = UUID.randomUUID();
-        BarStationRequestDto request = new BarStationRequestDto(
-                "New Station",
-                "Test Description",
-                true,
-                List.of(userId1, userId2));
+        var request = new BarStationRequestDto().name("New Station").description("Test Description").isActive(true)
+                .userIds(List.of(userId1, userId2));
 
         // Arrange: Create expected response
-        BarStationResponseDto response = createMockStationResponse(
+        Role role = Role.builder().name("USER").build();
+        BarStation response = createMockStationResponse(
                 1L, 1L, "New Station", true,
-                List.of(
-                        new UserSummaryResponseDto(userId1, "user1@test.com", "User 1", "USER"),
-                        new UserSummaryResponseDto(userId2, "user2@test.com", "User 2", "USER")));
+                Set.of(
+                        User.builder().id(userId1).email("user1@test.com").name("User 1").role(role).build(),
+                        User.builder().id(userId2).email("user2@test.com").name("User 2").role(role).build()));
 
         // Arrange: Mock service
         when(barStationService.createStation(eq(1L), any(BarStationRequestDto.class)))
@@ -243,11 +241,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(regularUser);
 
         // Arrange: Create request DTO
-        BarStationRequestDto request = new BarStationRequestDto(
-                "New Station",
-                "Test Description",
-                true,
-                Collections.emptyList());
+        var request = new BarStationRequestDto().name("New Station").description("Test Description")
+                .isActive(true).userIds(Collections.emptyList());
 
         // Act & Assert: Non-admin should get 403 Forbidden
         mockMvc.perform(post("/api/bar-stations")
@@ -266,11 +261,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(adminUser);
 
         // Arrange: Create request DTO
-        BarStationRequestDto request = new BarStationRequestDto(
-                "Duplicate Station",
-                "Test Description",
-                true,
-                Collections.emptyList());
+        var request = new BarStationRequestDto().name("Duplicate Station").description("Test Description")
+                .isActive(true).userIds(Collections.emptyList());
 
         // Arrange: Mock service to throw DuplicateResourceException
         when(barStationService.createStation(eq(1L), any(BarStationRequestDto.class)))
@@ -294,16 +286,26 @@ class BarStationControllerTest {
 
         // Arrange: Create request DTO
         UUID userId = UUID.randomUUID();
-        BarStationRequestDto request = new BarStationRequestDto(
-                "Updated Station",
-                "Updated Description",
-                false,
-                List.of(userId));
+        var request = new BarStationRequestDto().name("Updated Station").description("Updated Description")
+                .isActive(false).userIds(List.of(userId));
 
         // Arrange: Create expected response
-        BarStationResponseDto response = createMockStationResponse(
-                1L, 1L, "Updated Station", "Updated Description", false,
-                List.of(new UserSummaryResponseDto(userId, "user@test.com", "User", "USER")));
+        Role role = Role.builder().name("USER").build();
+        BarStation response = BarStation.builder()
+                .id(1L)
+                .organizationId(1L)
+                .name("Updated Station")
+                .description("Updated Description")
+                .isActive(false)
+                .users(Set.of(User.builder()
+                        .id(userId)
+                        .email("user@test.com")
+                        .name("User")
+                        .role(role)
+                        .build()))
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
 
         // Arrange: Mock service
         when(barStationService.updateStation(eq(1L), eq(1L), any(BarStationRequestDto.class)))
@@ -331,11 +333,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(regularUser);
 
         // Arrange: Create request DTO
-        BarStationRequestDto request = new BarStationRequestDto(
-                "Updated Station",
-                "Updated Description",
-                true,
-                Collections.emptyList());
+        var request = new BarStationRequestDto().name("Updated Station").description("Updated Description")
+                .isActive(true).userIds(Collections.emptyList());
 
         // Act & Assert: Non-admin should get 403 Forbidden
         mockMvc.perform(put("/api/bar-stations/1")
@@ -354,11 +353,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(adminUser);
 
         // Arrange: Create request DTO
-        BarStationRequestDto request = new BarStationRequestDto(
-                "Updated Station",
-                "Updated Description",
-                true,
-                Collections.emptyList());
+        var request = new BarStationRequestDto().name("Updated Station").description("Updated Description")
+                .isActive(true).userIds(Collections.emptyList());
 
         // Arrange: Mock service to throw NotFoundException
         when(barStationService.updateStation(eq(1L), eq(999L), any(BarStationRequestDto.class)))
@@ -381,11 +377,8 @@ class BarStationControllerTest {
         setupSecurityContextWithUser(adminUser);
 
         // Arrange: Create request DTO
-        BarStationRequestDto request = new BarStationRequestDto(
-                "Duplicate Station",
-                "Updated Description",
-                true,
-                Collections.emptyList());
+        var request = new BarStationRequestDto().name("Duplicate Station").description("Updated Description")
+                .isActive(true).userIds(Collections.emptyList());
 
         // Arrange: Mock service to throw DuplicateResourceException
         when(barStationService.updateStation(eq(1L), eq(1L), any(BarStationRequestDto.class)))
@@ -487,53 +480,33 @@ class BarStationControllerTest {
     }
 
     /**
-     * Helper method to create a mock bar station response DTO.
+     * Helper method to create a mock bar station.
      */
-    private BarStationResponseDto createMockStationResponse(
-            Long id, Long organizationId, String name, Boolean isActive) {
-        return new BarStationResponseDto(
-                id,
-                organizationId,
-                name,
-                "Test Description",
-                isActive,
-                Collections.emptyList(),
-                Instant.now(),
-                Instant.now());
+    private BarStation createMockStation(Long id, Long organizationId, String name, Boolean isActive) {
+        return BarStation.builder()
+                .id(id)
+                .organizationId(organizationId)
+                .name(name)
+                .isActive(isActive)
+                .build();
     }
 
     /**
      * Helper method to create a mock bar station response DTO with assigned users.
      */
-    private BarStationResponseDto createMockStationResponse(
+    private BarStation createMockStationResponse(
             Long id, Long organizationId, String name, Boolean isActive,
-            List<UserSummaryResponseDto> assignedUsers) {
-        return new BarStationResponseDto(
-                id,
-                organizationId,
-                name,
-                "Test Description",
-                isActive,
-                assignedUsers,
-                Instant.now(),
-                Instant.now());
-    }
-
-    /**
-     * Helper method to create a mock bar station response DTO with assigned users and description.
-     */
-    private BarStationResponseDto createMockStationResponse(
-            Long id, Long organizationId, String name, String description,
-            Boolean isActive, List<UserSummaryResponseDto> assignedUsers) {
-        return new BarStationResponseDto(
-                id,
-                organizationId,
-                name,
-                description,
-                isActive,
-                assignedUsers,
-                Instant.now(),
-                Instant.now());
+            Set<User> assignedUsers) {
+        return BarStation.builder()
+                .id(id)
+                .organizationId(organizationId)
+                .name(name)
+                .description("Test Description")
+                .isActive(isActive)
+                .users(assignedUsers)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
     }
 
     /**

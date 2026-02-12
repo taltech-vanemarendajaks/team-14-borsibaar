@@ -118,6 +118,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-annotations</artifactId>
+			<version>2.2.42</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openapitools</groupId>
+			<artifactId>jackson-databind-nullable</artifactId>
+			<version>0.2.8</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -156,6 +166,48 @@
 						</exclude>
 					</excludes>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.19.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/api-spec.yaml</inputSpec>
+							<generatorName>spring</generatorName>
+							<apiPackage>com.borsibaar.api</apiPackage>
+							<modelPackage>com.borsibaar.dto</modelPackage>
+							<additionalProperties>
+								<documentationProvider>none</documentationProvider>
+								<bigDecimalAsString>true</bigDecimalAsString>
+								<dateLibrary>java8</dateLibrary>
+								<serializableModel>true</serializableModel>
+								<openApiNullable>false</openApiNullable>
+								<hideGenerationTimestamp>true</hideGenerationTimestamp>
+							</additionalProperties>
+							<library>spring-boot</library>
+							<configOptions>
+								<interfaceOnly>true</interfaceOnly>
+								<skipDefaultInterface>true</skipDefaultInterface>
+								<useJakartaEe>true</useJakartaEe>
+								<useSpringBoot3>true</useSpringBoot3>
+								<useTags>true</useTags>
+							</configOptions>
+							<modelNameSuffix>Dto</modelNameSuffix>
+							<typeMappings>
+								<typeMapping>DateTime=Instant</typeMapping>
+							</typeMappings>
+							<importMappings>
+								<importMapping>Instant=java.time.Instant</importMapping>
+							</importMappings>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
