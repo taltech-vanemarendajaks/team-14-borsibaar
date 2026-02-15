@@ -989,3 +989,22 @@ databaseChangeLog:
         - dropColumn:
             columnName: price_decrease_step
             tableName: organizations
+
+  - changeSet:
+      id: 015-drop-quantity-change-column-in-inventory-transactions
+      author: andri
+      changes:
+        - dropColumn:
+            columnName: quantity_before
+            tableName: inventory_transactions
+
+  - changeSet:
+      id: 016-insert-customer-role
+      author: edvard
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: CUSTOMER

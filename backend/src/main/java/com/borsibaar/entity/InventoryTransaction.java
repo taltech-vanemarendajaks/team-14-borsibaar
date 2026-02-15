@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -29,9 +29,6 @@ public class InventoryTransaction {
 
     @Column(name = "quantity_change", nullable = false, precision = 19, scale = 4)
     private BigDecimal quantityChange;
-
-    @Column(name = "quantity_before", nullable = false, precision = 19, scale = 4)
-    private BigDecimal quantityBefore;
 
     @Column(name = "quantity_after", nullable = false, precision = 19, scale = 4)
     private BigDecimal quantityAfter;
@@ -55,7 +52,7 @@ public class InventoryTransaction {
     private Long barStationId;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inventory_id")

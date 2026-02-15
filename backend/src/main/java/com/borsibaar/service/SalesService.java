@@ -1,6 +1,9 @@
 package com.borsibaar.service;
 
-import com.borsibaar.dto.*;
+import com.borsibaar.dto.SaleItemRequestDto;
+import com.borsibaar.dto.SaleItemResponseDto;
+import com.borsibaar.dto.SaleRequestDto;
+import com.borsibaar.dto.SaleResponseDto;
 import com.borsibaar.entity.Category;
 import com.borsibaar.entity.Inventory;
 import com.borsibaar.entity.InventoryTransaction;
@@ -15,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,27 +42,27 @@ public class SalesService {
                 BigDecimal totalAmount = BigDecimal.ZERO;
 
                 // Process each item in the sale
-                for (SaleItemRequestDto item : request.items()) {
+                for (SaleItemRequestDto item : request.getItems()) {
                         SaleItemResponseDto saleItem = processSaleItem(item, userId, organizationId, saleId,
-                                        request.barStationId());
+                                        request.getBarStationId());
                         saleItems.add(saleItem);
-                        totalAmount = totalAmount.add(saleItem.totalPrice());
+                        totalAmount = totalAmount.add(saleItem.getTotalPrice());
                 }
 
-                return new SaleResponseDto(
-                                saleId,
-                                saleItems,
-                                totalAmount,
-                                request.notes(),
-                                OffsetDateTime.now());
+                return new SaleResponseDto()
+                        .saleId(saleId)
+                        .items(saleItems)
+                        .totalAmount(totalAmount)
+                        .notes(request.getNotes())
+                        .timestamp(Instant.now());
         }
 
         private SaleItemResponseDto processSaleItem(SaleItemRequestDto item, UUID userId, Long organizationId,
-                        String saleId, Long barStationId) {
+                                                     String saleId, Long barStationId) {
                 // Verify product exists and belongs to organization
-                Product product = productRepository.findById(item.productId())
+                Product product = productRepository.findById(item.getProductId())
                                 .orElseThrow(() -> new ResponseStatusException(
-                                                HttpStatus.NOT_FOUND, "Product not found: " + item.productId()));
+                                                HttpStatus.NOT_FOUND, "Product not found: " + item.getProductId()));
 
                 if (!product.getOrganizationId().equals(organizationId)) {
                         throw new ResponseStatusException(
@@ -85,20 +89,20 @@ public class SalesService {
 
                 // Check stock availability
                 BigDecimal oldQuantity = inventory.getQuantity();
-                BigDecimal newQuantity = oldQuantity.subtract(item.quantity());
+                BigDecimal newQuantity = oldQuantity.subtract(item.getQuantity());
 
                 if (newQuantity.compareTo(BigDecimal.ZERO) < 0) {
                         throw new ResponseStatusException(
                                         HttpStatus.BAD_REQUEST,
                                         "Insufficient stock for " + product.getName() +
                                                         ". Available: " + oldQuantity + ", Requested: "
-                                                        + item.quantity());
+                                                        + item.getQuantity());
                 }
 
                 // Calculate pricing
                 BigDecimal priceBeforeSale = Optional.ofNullable(inventory.getAdjustedPrice())
                                 .orElse(product.getBasePrice());
-                BigDecimal totalPrice = priceBeforeSale.multiply(item.quantity());
+                BigDecimal totalPrice = priceBeforeSale.multiply(item.getQuantity());
 
                 BigDecimal priceAfterSale = priceBeforeSale;
                 Category category = product.getCategory();
@@ -118,27 +122,25 @@ public class SalesService {
                 inventory = inventoryRepository.save(inventory);
 
                 // Create sale transaction
-                createSaleTransaction(inventory, item.quantity(),
-                                oldQuantity, newQuantity, priceBeforeSale, priceAfterSale,
+                createSaleTransaction(inventory, item.getQuantity(),
+                                newQuantity, priceBeforeSale, priceAfterSale,
                                 saleId, userId, barStationId);
 
-                return new SaleItemResponseDto(
-                                item.productId(),
-                                product.getName(),
-                                item.quantity(),
-                                priceBeforeSale,
-                                totalPrice);
+                return new SaleItemResponseDto()
+                        .productId(item.getProductId())
+                        .productName(product.getName())
+                        .quantity(item.getQuantity())
+                        .unitPrice(priceBeforeSale)
+                        .totalPrice(totalPrice);
         }
 
         private void createSaleTransaction(Inventory inventory, BigDecimal quantity,
-                        BigDecimal quantityBefore, BigDecimal quantityAfter,
-                        BigDecimal priceBefore, BigDecimal priceAfter,
+                        BigDecimal quantityAfter, BigDecimal priceBefore, BigDecimal priceAfter,
                         String saleId, UUID userId, Long barStationId) {
                 InventoryTransaction transaction = new InventoryTransaction();
                 transaction.setInventory(inventory);
                 transaction.setTransactionType("SALE");
                 transaction.setQuantityChange(quantity.negate()); // Negative for sales
-                transaction.setQuantityBefore(quantityBefore);
                 transaction.setQuantityAfter(quantityAfter);
                 transaction.setPriceBefore(priceBefore);
                 transaction.setPriceAfter(priceAfter);
@@ -146,7 +148,7 @@ public class SalesService {
                 transaction.setNotes("POS Sale");
                 transaction.setCreatedBy(userId);
                 transaction.setBarStationId(barStationId);
-                transaction.setCreatedAt(OffsetDateTime.now());
+                transaction.setCreatedAt(Instant.now());
                 inventoryTransactionRepository.save(transaction);
         }
 }

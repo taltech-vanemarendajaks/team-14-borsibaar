@@ -11,7 +11,6 @@ import com.borsibaar.repository.CategoryRepository;
 import com.borsibaar.repository.InventoryRepository;
 import com.borsibaar.repository.InventoryTransactionRepository;
 import com.borsibaar.repository.ProductRepository;
-import com.borsibaar.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
@@ -28,15 +28,14 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
-    private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
 
     @Transactional
     public ProductResponseDto create(ProductRequestDto request, Long orgId) {
-        Category cat = categoryRepository.findById(request.categoryId())
+        Category cat = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Category not found: " + request.categoryId()));
+                        HttpStatus.BAD_REQUEST, "Category not found: " + request.getCategoryId()));
 
         Product entity = productMapper.toEntity(request);
         entity.setOrganizationId(orgId);
@@ -65,15 +64,9 @@ public class ProductService {
         createInitialInventory(saved, orgId);
 
         ProductResponseDto base = productMapper.toResponse(saved);
-        return new ProductResponseDto(
-                base.id(),
-                base.name(),
-                base.description(),
-                base.currentPrice(),
-                base.minPrice(),
-                base.maxPrice(),
-                base.categoryId(),
-                cat.getName());
+        base.setCategoryName(cat.getName());
+
+        return base;
     }
 
     private void createInitialInventory(Product product, Long organizationId) {
@@ -84,12 +77,11 @@ public class ProductService {
         transaction.setInventory(savedInventory);
         transaction.setTransactionType("INITIAL");
         transaction.setQuantityChange(BigDecimal.ZERO);
-        transaction.setQuantityBefore(BigDecimal.ZERO);
         transaction.setQuantityAfter(BigDecimal.ZERO);
         transaction.setPriceBefore(Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO));
         transaction.setPriceAfter(Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO));
         transaction.setNotes("Product created - initial inventory");
-        transaction.setCreatedAt(OffsetDateTime.now());
+        transaction.setCreatedAt(Instant.now());
         inventoryTransactionRepository.save(transaction);
     }
 
@@ -103,16 +95,8 @@ public class ProductService {
         String categoryName = categoryRepository.findById(product.getCategoryId())
                 .map(Category::getName)
                 .orElse(null);
-
-        return new ProductResponseDto(
-                base.id(),
-                base.name(),
-                base.description(),
-                base.currentPrice(),
-                base.minPrice(),
-                base.maxPrice(),
-                base.categoryId(),
-                categoryName);
+        base.setCategoryName(categoryName);
+        return base;
     }
 
     @Transactional

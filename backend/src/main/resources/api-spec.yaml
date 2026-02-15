@@ -1,0 +1,960 @@
+openapi: 3.0.3
+info:
+  title: Borsibaar API
+  version: 1.0.0
+
+paths:
+  /account:
+    get:
+      tags:
+        - account
+      summary: Get account balances
+      operationId: getUser
+      responses:
+        200:
+          description: Returned user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/meResponse'
+  /account/onboarding:
+    post:
+      tags:
+        - account
+      summary: Onboard user
+      operationId: onboardUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/onboardingRequest'
+      responses:
+        200:
+          description: User onboarded
+  /login/success:
+    get:
+      tags:
+        - auth
+      summary: Login success endpoint
+      operationId: loginSuccess
+      responses:
+        200:
+          description: Returned cookie
+  /logout:
+    post:
+      tags:
+        - auth
+      summary: Logout user
+      operationId: logoutUser
+      responses:
+        200:
+          description: User logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/logoutResponse'
+  /users:
+    get:
+      tags:
+        - user
+      summary: Find organization users
+      operationId: getOrganizationUsers
+      responses:
+        200:
+          description: Got organization users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummaryResponse'
+  /bar-stations:
+    get:
+      tags:
+        - barStation
+      summary: Get all bar stations (admin only)
+      operationId: getAllStations
+      responses:
+        200:
+          description: Got all bar stations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BarStationResponse'
+    post:
+      tags:
+        - barStation
+      summary: Create new bar station (admin only)
+      operationId: createStation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BarStationRequest'
+      responses:
+        201:
+          description: Bar station created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarStationResponse'
+  /bar-stations/user:
+    get:
+      tags:
+        - barStation
+      summary: Get bar stations for current user
+      operationId: getUserStations
+      responses:
+        200:
+          description: Got user bar stations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BarStationResponse'
+  /bar-stations/{id}:
+    get:
+      tags:
+        - barStation
+      summary: Get bar station by ID
+      operationId: getStationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got bar station
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarStationResponse'
+    put:
+      tags:
+        - barStation
+      summary: Update bar station (admin only)
+      operationId: updateStation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BarStationRequest'
+      responses:
+        200:
+          description: Bar station updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarStationResponse'
+    delete:
+      tags:
+        - barStation
+      summary: Delete bar station (admin only)
+      operationId: deleteStation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        204:
+          description: Bar station deleted
+  /categories:
+    post:
+      tags:
+        - category
+      summary: Create category
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        201:
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+    get:
+      tags:
+        - category
+      summary: Get all categories
+      operationId: getAllCategories
+      parameters:
+        - name: organizationId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+  /categories/{id}:
+    get:
+      tags:
+        - category
+      summary: Get category by ID
+      operationId: getCategoryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+    delete:
+      tags:
+        - category
+      summary: Delete category
+      operationId: deleteCategory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        204:
+          description: Category deleted
+  /sales:
+    post:
+      tags:
+        - sales
+      summary: Process sale
+      operationId: processSale
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+      responses:
+        201:
+          description: Sale processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+  /products:
+    post:
+      tags:
+        - product
+      summary: Create product
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        201:
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+  /products/{id}:
+    get:
+      tags:
+        - product
+      summary: Get product by ID
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+    delete:
+      tags:
+        - product
+      summary: Delete product
+      operationId: deleteProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        204:
+          description: Product deleted
+  /organizations:
+    post:
+      tags:
+        - organization
+      summary: Create organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+      responses:
+        201:
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+    get:
+      tags:
+        - organization
+      summary: Get all organizations
+      operationId: getAllOrganizations
+      responses:
+        200:
+          description: Got organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizationResponse'
+  /organizations/{id}:
+    get:
+      tags:
+        - organization
+      summary: Get organization by ID
+      operationId: getOrganizationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+    put:
+      tags:
+        - organization
+      summary: Update organization
+      operationId: updateOrganization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+      responses:
+        200:
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+  /inventory:
+    get:
+      tags:
+        - inventory
+      summary: Get organization inventory
+      operationId: getOrganizationInventory
+      parameters:
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: organizationId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryResponse'
+  /inventory/product/{productId}:
+    get:
+      tags:
+        - inventory
+      summary: Get product inventory
+      operationId: getProductInventory
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got product inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+  /inventory/add:
+    post:
+      tags:
+        - inventory
+      summary: Add stock
+      operationId: addStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddStockRequest'
+      responses:
+        201:
+          description: Stock added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+  /inventory/remove:
+    post:
+      tags:
+        - inventory
+      summary: Remove stock
+      operationId: removeStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveStockRequest'
+      responses:
+        200:
+          description: Stock removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+  /inventory/adjust:
+    post:
+      tags:
+        - inventory
+      summary: Adjust stock
+      operationId: adjustStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustStockRequest'
+      responses:
+        200:
+          description: Stock adjusted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+  /inventory/product/{productId}/history:
+    get:
+      tags:
+        - inventory
+      summary: Get transaction history
+      operationId: getTransactionHistory
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Got transaction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryTransactionResponse'
+  /inventory/sales-stats:
+    get:
+      tags:
+        - inventory
+      summary: Get user sales stats
+      operationId: getUserSalesStats
+      responses:
+        200:
+          description: Got user sales stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSalesStatsResponse'
+  /inventory/station-sales-stats:
+    get:
+      tags:
+        - inventory
+      summary: Get station sales stats
+      operationId: getStationSalesStats
+      responses:
+        200:
+          description: Got station sales stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StationSalesStatsResponse'
+
+components:
+  schemas:
+    meResponse:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        organizationId:
+          type: integer
+          format: int64
+        needsOnboarding:
+          type: boolean
+    onboardingRequest:
+      type: object
+      properties:
+        organizationId:
+          type: integer
+          format: int64
+        acceptTerms:
+          type: boolean
+    logoutResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    SaleRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SaleItemRequest'
+        notes:
+          type: string
+        barStationId:
+          type: integer
+          format: int64
+    SaleItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+    RemoveStockRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+        referenceId:
+          type: string
+        notes:
+          type: string
+    ProductRequest:
+      type: object
+      required:
+        - name
+        - currentPrice
+        - minPrice
+        - maxPrice
+        - categoryId
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        currentPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        minPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        maxPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+    AddStockRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+        notes:
+          type: string
+    AdjustStockRequest:
+      type: object
+      required:
+        - productId
+        - newQuantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        newQuantity:
+          type: number
+          minimum: 0
+        notes:
+          type: string
+    BarStationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        dynamicPricing:
+          type: boolean
+    OrganizationRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        priceIncreaseStep:
+          type: number
+          minimum: 0.0
+        priceDecreaseStep:
+          type: number
+          minimum: 0.0
+    BarStationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        assignedUsers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummaryResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        dynamicPricing:
+          type: boolean
+    InventoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        description:
+          type: string
+        basePrice:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+        updatedAt:
+          type: string
+          format: date-time
+    InventoryTransactionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        inventoryId:
+          type: integer
+          format: int64
+        transactionType:
+          type: string
+        quantityChange:
+          type: number
+        quantityBefore:
+          type: number
+        quantityAfter:
+          type: number
+        priceBefore:
+          type: number
+        priceAfter:
+          type: number
+        referenceId:
+          type: string
+        notes:
+          type: string
+        createdBy:
+          type: string
+        createdByName:
+          type: string
+        createdByEmail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    OrganizationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        priceIncreaseStep:
+          type: number
+        priceDecreaseStep:
+          type: number
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        currentPrice:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+    SaleItemResponse:
+      type: object
+      properties:
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+    SaleResponse:
+      type: object
+      properties:
+        saleId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItemResponse'
+        totalAmount:
+          type: number
+        notes:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    StationSalesStatsResponse:
+      type: object
+      properties:
+        barStationId:
+          type: integer
+          format: int64
+        barStationName:
+          type: string
+        salesCount:
+          type: integer
+          format: int64
+        totalRevenue:
+          type: number
+    User3:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        token:
+          type: string
+    UserSalesStatsResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        userName:
+          type: string
+        userEmail:
+          type: string
+        salesCount:
+          type: integer
+          format: int64
+        totalRevenue:
+          type: number
+        barStationId:
+          type: integer
+          format: int64
+        barStationName:
+          type: string
+    UserSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string

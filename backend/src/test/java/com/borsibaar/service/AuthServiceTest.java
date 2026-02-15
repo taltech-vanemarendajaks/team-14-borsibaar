@@ -1,6 +1,6 @@
 package com.borsibaar.service;
 
-import com.borsibaar.dto.UserDTO;
+import com.borsibaar.dto.User3Dto;
 import com.borsibaar.entity.Role;
 import com.borsibaar.entity.User;
 import com.borsibaar.mapper.UserMapper;
@@ -8,12 +8,12 @@ import com.borsibaar.repository.RoleRepository;
 import com.borsibaar.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -58,21 +58,24 @@ class AuthServiceTest {
                                 "google");
 
                 Role defaultRole = Role.builder().id(10L).name("USER").build();
-                when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
-                when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
                 when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+                when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
+
+                when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
                 when(jwtService.generateToken("new@test.com")).thenReturn("jwt-token");
                 when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
                         User u = inv.getArgument(0);
-                        return new UserDTO(u.getEmail(), u.getName(), u.getRole().getName(), "jwt-token");
+                        return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName())
+                                        .token("jwt-token");
                 });
 
                 AuthService.AuthResult result = authService.processOAuthLogin(token);
 
                 assertNotNull(result);
-                assertEquals("new@test.com", result.dto().email());
-                assertEquals("USER", result.dto().role());
-                assertEquals("jwt-token", result.dto().token());
+                assertEquals("new@test.com", result.dto().getEmail());
+                assertEquals("USER", result.dto().getRole());
+                assertEquals("jwt-token", result.dto().getToken());
                 assertTrue(result.needsOnboarding());
 
                 ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
@@ -82,14 +85,16 @@ class AuthServiceTest {
         }
 
         @Test
-        void processOAuthLogin_ExistingUser_PreservesExistingName() {
+        void processOAuthLogin_ExistingUser_UpdatesNameAndReturnsToken() {
                 User existing = User.builder().email("exist@test.com").name("Old Name")
                                 .role(Role.builder().id(1L).name("USER").build()).build();
+
                 when(userRepository.findByEmail("exist@test.com")).thenReturn(Optional.of(existing));
                 when(jwtService.generateToken("exist@test.com")).thenReturn("jwt-token");
                 when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
                         User u = inv.getArgument(0);
-                        return new UserDTO(u.getEmail(), u.getName(), u.getRole().getName(), "jwt-token");
+                        return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName())
+                                        .token("jwt-token");
                 });
 
                 DefaultOAuth2User principal = new DefaultOAuth2User(
@@ -101,9 +106,10 @@ class AuthServiceTest {
 
                 AuthService.AuthResult result = authService.processOAuthLogin(token);
 
-                assertEquals("exist@test.com", result.dto().email());
-                assertEquals("Old Name", result.dto().name());
-                verify(userRepository, never()).save(any());
+                assertEquals("exist@test.com", result.dto().getEmail());
+                assertEquals("Old Name", result.dto().getName());
+                verify((userRepository), never()).save(existing);
+
         }
 
         @Test

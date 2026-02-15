@@ -7,11 +7,7 @@ import com.borsibaar.entity.Inventory;
 import com.borsibaar.entity.InventoryTransaction;
 import com.borsibaar.entity.Product;
 import com.borsibaar.mapper.ProductMapper;
-import com.borsibaar.repository.CategoryRepository;
-import com.borsibaar.repository.InventoryRepository;
-import com.borsibaar.repository.InventoryTransactionRepository;
-import com.borsibaar.repository.ProductRepository;
-import com.borsibaar.repository.UserRepository;
+import com.borsibaar.repository.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,64 +37,73 @@ class ProductServiceTest {
 
     @Test
     void create_Success_CreatesInventoryAndTransaction() {
-        ProductRequestDto request = new ProductRequestDto("  Beer  ", "Desc", BigDecimal.valueOf(5), BigDecimal.valueOf(3), BigDecimal.valueOf(10), 7L);
+        new ProductRequestDto();
+        var req = new ProductRequestDto().name("  Beer  ").description("Desc").currentPrice(BigDecimal.valueOf(5))
+                .minPrice(BigDecimal.valueOf(3)).maxPrice(BigDecimal.valueOf(10)).categoryId(7L);
         Category cat = new Category(); cat.setId(7L); cat.setOrganizationId(1L); cat.setName("Cat");
         when(categoryRepository.findById(7L)).thenReturn(Optional.of(cat));
         Product entity = new Product(); entity.setName("Beer"); entity.setCategoryId(7L); entity.setBasePrice(BigDecimal.valueOf(5));
-        when(productMapper.toEntity(request)).thenReturn(entity);
+        when(productMapper.toEntity(req)).thenReturn(entity);
         when(productRepository.existsByOrganizationIdAndNameIgnoreCase(1L, "Beer")).thenReturn(false);
         Product saved = new Product(); saved.setId(11L); saved.setName("Beer"); saved.setCategoryId(7L); saved.setOrganizationId(1L); saved.setBasePrice(BigDecimal.valueOf(5)); saved.setActive(true); saved.setCreatedAt(OffsetDateTime.now()); saved.setUpdatedAt(OffsetDateTime.now());
         when(productRepository.save(entity)).thenReturn(saved);
-        when(productMapper.toResponse(saved)).thenReturn(new ProductResponseDto(11L, "Beer", "Desc", BigDecimal.valueOf(5), BigDecimal.valueOf(3), BigDecimal.valueOf(10), 7L, "Cat"));
+        var resp = new ProductResponseDto().id(11L).name("Beer").description("Desc")
+                .currentPrice(BigDecimal.valueOf(5)).minPrice(BigDecimal.valueOf(3)).maxPrice(BigDecimal.valueOf(10))
+                .categoryId(7L).categoryName("Cat");
+        when(productMapper.toResponse(saved)).thenReturn(resp);
         when(inventoryRepository.save(any(Inventory.class))).thenAnswer(inv -> {
             Inventory i = inv.getArgument(0); i.setId(100L); return i; });
         when(inventoryTransactionRepository.save(any(InventoryTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ProductResponseDto dto = productService.create(request, 1L);
-        assertEquals("Beer", dto.name());
+        ProductResponseDto dto = productService.create(req, 1L);
+        assertEquals("Beer", dto.getName());
         verify(inventoryRepository).save(any(Inventory.class));
         verify(inventoryTransactionRepository).save(any(InventoryTransaction.class));
     }
 
     @Test
     void create_CategoryNotFound_Throws() {
-        ProductRequestDto request = new ProductRequestDto("Beer", "Desc", BigDecimal.ONE, BigDecimal.ONE, BigDecimal.TEN, 9L);
+        var req = new ProductRequestDto().name("Beer").description("Desc").currentPrice(BigDecimal.ONE)
+                .minPrice(BigDecimal.ONE).maxPrice(BigDecimal.TEN).categoryId(9L);
         when(categoryRepository.findById(9L)).thenReturn(Optional.empty());
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(request, 1L));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(req, 1L));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void create_NameBlank_Throws() {
-        ProductRequestDto request = new ProductRequestDto("   ", "Desc", BigDecimal.ONE, BigDecimal.ONE, BigDecimal.TEN, 7L);
+        var req = new ProductRequestDto().name("   ").description("Desc").currentPrice(BigDecimal.ONE)
+                .minPrice(BigDecimal.ONE).maxPrice(BigDecimal.TEN).categoryId(7L);
         Category cat = new Category(); cat.setId(7L); cat.setOrganizationId(1L);
         when(categoryRepository.findById(7L)).thenReturn(Optional.of(cat));
         Product entity = new Product();
-        when(productMapper.toEntity(request)).thenReturn(entity);
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(request, 1L));
+        when(productMapper.toEntity(req)).thenReturn(entity);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(req, 1L));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void create_CategoryOrgMismatch_Throws() {
-        ProductRequestDto request = new ProductRequestDto("Beer", "Desc", BigDecimal.ONE, BigDecimal.ONE, BigDecimal.TEN, 7L);
+        var req = new ProductRequestDto().name("Beer").description("Desc").currentPrice(BigDecimal.ONE)
+                .minPrice(BigDecimal.ONE).maxPrice(BigDecimal.TEN).categoryId(7L);
         Category cat = new Category(); cat.setId(7L); cat.setOrganizationId(2L);
         when(categoryRepository.findById(7L)).thenReturn(Optional.of(cat));
         Product entity = new Product(); entity.setName("Beer");
-        when(productMapper.toEntity(request)).thenReturn(entity);
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(request, 1L));
+        when(productMapper.toEntity(req)).thenReturn(entity);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(req, 1L));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void create_DuplicateName_ThrowsConflict() {
-        ProductRequestDto request = new ProductRequestDto("Beer", "Desc", BigDecimal.ONE, BigDecimal.ONE, BigDecimal.TEN, 7L);
+        var req = new ProductRequestDto().name("Beer").description("Desc").currentPrice(BigDecimal.ONE)
+                .minPrice(BigDecimal.ONE).maxPrice(BigDecimal.TEN).categoryId(7L);
         Category cat = new Category(); cat.setId(7L); cat.setOrganizationId(1L);
         when(categoryRepository.findById(7L)).thenReturn(Optional.of(cat));
         Product entity = new Product(); entity.setName("Beer");
-        when(productMapper.toEntity(request)).thenReturn(entity);
+        when(productMapper.toEntity(req)).thenReturn(entity);
         when(productRepository.existsByOrganizationIdAndNameIgnoreCase(1L, "Beer")).thenReturn(true);
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(request, 1L));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> productService.create(req, 1L));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
