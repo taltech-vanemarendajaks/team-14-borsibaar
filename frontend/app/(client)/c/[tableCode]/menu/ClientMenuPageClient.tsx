@@ -32,7 +32,7 @@ const contentMax = "max-w-md sm:max-w-xl";
 
 // Sticky panel style (keep simple to avoid “extra frame” feeling)
 const panelSoft =
-  "rounded-2xl bg-[#070A12]/95 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-white/10";
+  "rounded-2xl bg-white/[0.06] backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/20";
 
 /* ---------- tiny inline icons (no emoji, no deps) ---------- */
 type IconProps = SVGProps<SVGSVGElement> & { title?: string };
