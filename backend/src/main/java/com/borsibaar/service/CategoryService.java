@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 @Service
 public class CategoryService {
@@ -49,9 +48,8 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponseDto> getAllByOrg(Long organizationId) {
-        Iterable<Category> categories = categoryRepository.findAllByOrganizationId(organizationId);
-
-        return StreamSupport.stream(categories.spliterator(), false)
+        return categoryRepository.findAllByOrganizationId(organizationId)
+                .stream()
                 .map(categoryMapper::toResponse)
                 .toList();
     }
