@@ -199,14 +199,8 @@ export default function ClientTablePageClient({ tableCode }: Props) {
           {/* header */}
           <header className="mb-5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <IconSpark className="h-4 w-4 text-blue-300/90" />
-                <div className="text-[11px] font-semibold tracking-[0.22em] text-white/55">
-                  {t.brand}
-                </div>
-              </div>
-
-              <div className="mt-2 flex items-center">
+              {/* Top row: logo + (optional) small spacer */}
+              <div className="flex items-center gap-3">
                 <Image
                   src="/tudengibaarlogo.png"
                   alt="Tudengibaar"
@@ -214,7 +208,8 @@ export default function ClientTablePageClient({ tableCode }: Props) {
                   height={72}
                   priority
                   className="
-                    h-10 w-auto
+                    h-9 sm:h-10 w-auto
+                    -mt-[2px]
                     drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]
                     brightness-0 invert
                     opacity-95
@@ -222,30 +217,34 @@ export default function ClientTablePageClient({ tableCode }: Props) {
                 />
               </div>
 
-              <h1 className="mt-4 text-3xl font-semibold leading-tight text-white/92">
+              {/* Title aligns nicely under the logo */}
+              <h1 className="mt-3 ml-4 text-2xl font-semibold leading-tight text-white/92">
                 {t.title}
               </h1>
             </div>
 
-            <div className="shrink-0 inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-              <button
-                onClick={() => setLang("et")}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  lang === "et"
-                    ? "bg-blue-500/90 text-white"
-                    : "text-white/60 hover:text-white/80"
-                }`}>
-                ET
-              </button>
-              <button
-                onClick={() => setLang("en")}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  lang === "en"
-                    ? "bg-blue-500/90 text-white"
-                    : "text-white/60 hover:text-white/80"
-                }`}>
-                EN
-              </button>
+            {/* Language toggle aligned to top */}
+            <div className="shrink-0">
+              <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+                <button
+                  onClick={() => setLang("et")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    lang === "et"
+                      ? "bg-blue-500/90 text-white"
+                      : "text-white/60 hover:text-white/80"
+                  }`}>
+                  ET
+                </button>
+                <button
+                  onClick={() => setLang("en")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    lang === "en"
+                      ? "bg-blue-500/90 text-white"
+                      : "text-white/60 hover:text-white/80"
+                  }`}>
+                  EN
+                </button>
+              </div>
             </div>
           </header>
 
