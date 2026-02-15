@@ -27,8 +27,31 @@ services:
       - .env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_PROFILES_ACTIVE: dev
+      DEBUG_LOGIN_SECRET: ${DEBUG_LOGIN_SECRET}
+      DEBUG_LOGIN_EMAIL: ${DEBUG_LOGIN_EMAIL:-dev@local.test}
+      DEBUG_LOGIN_NAME: ${DEBUG_LOGIN_NAME:-Dev User}
+      DEBUG_LOGIN_ROLE: ${DEBUG_LOGIN_ROLE:-USER}
     depends_on:
       - postgres
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # For LOCAL dev compose, the browser talks to your machine, so localhost:8080 is correct
+        # If you deploy on a server, change this to http://yourdomain or http://server_ip
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:8080
+    container_name: borsibaar-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8080
+      DEBUG_LOGIN_SECRET: ${DEBUG_LOGIN_SECRET}
+      NEXT_PUBLIC_DEBUG_AUTH: ${NEXT_PUBLIC_DEBUG_AUTH:-false}
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
