@@ -539,7 +539,7 @@ export default function ClientMenuPageClient({
   const subtleCard = "rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.06]";
 
   // Show sticky ONLY on menu+order (fix: “footer looks like it’s inside account card”)
-  const needsSticky = view === "menu" || view === "order";
+  const needsSticky = true;
 
   // Reserve space only when sticky exists
   const stickyReserve = needsSticky
