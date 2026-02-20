@@ -1,0 +1,460 @@
+openapi: 3.0.3
+info:
+  title: Borsibaar API
+  version: 1.0.0
+
+paths:
+  /auth/login/success:
+    get:
+      operationId: loginSuccess
+      responses:
+        '200':
+          description: Success
+
+components:
+  schemas:
+    currentUser:
+      type: object
+      required:
+        - email
+        - needsOnboarding
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        organizationId:
+          type: integer
+          format: int64
+        needsOnboarding:
+          type: boolean
+    onboardingRequest:
+      type: object
+      properties:
+        organizationId:
+          type: integer
+          format: int64
+        acceptTerms:
+          type: boolean
+    logoutResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    SaleRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SaleItemRequest'
+        notes:
+          type: string
+        barStationId:
+          type: integer
+          format: int64
+    SaleItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+    RemoveStockRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+        referenceId:
+          type: string
+        notes:
+          type: string
+    ProductRequest:
+      type: object
+      required:
+        - name
+        - currentPrice
+        - minPrice
+        - maxPrice
+        - categoryId
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        currentPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        minPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        maxPrice:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+    AddStockRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          minimum: 0
+        notes:
+          type: string
+    AdjustStockRequest:
+      type: object
+      required:
+        - productId
+        - newQuantity
+      properties:
+        productId:
+          type: integer
+          format: int64
+        newQuantity:
+          type: number
+          minimum: 0
+        notes:
+          type: string
+    BarStationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        dynamicPricing:
+          type: boolean
+    OrganizationRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        priceIncreaseStep:
+          type: number
+          minimum: 0.0
+        priceDecreaseStep:
+          type: number
+          minimum: 0.0
+    BarStationResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - name
+        - isActive
+      properties:
+        id:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        assignedUsers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummaryResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CategoryResponse:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        dynamicPricing:
+          type: boolean
+    InventoryResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - productId
+        - productName
+        - description
+        - quantity
+        - unitPrice
+        - basePrice
+        - updatedAt
+        - minPrice
+        - maxPrice
+      properties:
+        id:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        description:
+          type: string
+        basePrice:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+        updatedAt:
+          type: string
+          format: date-time
+    InventoryTransactionResponse:
+      type: object
+      required:
+        - inventoryId
+        - transactionType
+        - quantityChange
+        - quantityBefore
+        - quantityAfter
+        - createdBy
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        inventoryId:
+          type: integer
+          format: int64
+        transactionType:
+          type: string
+        quantityChange:
+          type: number
+        quantityBefore:
+          type: number
+        quantityAfter:
+          type: number
+        priceBefore:
+          type: number
+        priceAfter:
+          type: number
+        referenceId:
+          type: string
+        notes:
+          type: string
+        createdBy:
+          type: string
+        createdByName:
+          type: string
+        createdByEmail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    OrganizationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        priceIncreaseStep:
+          type: number
+        priceDecreaseStep:
+          type: number
+    ProductResponse:
+      type: object
+      required:
+        - id
+        - name
+        - currentPrice
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        currentPrice:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+    SaleItemResponse:
+      type: object
+      properties:
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+    SaleResponse:
+      type: object
+      properties:
+        saleId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItemResponse'
+        totalAmount:
+          type: number
+        notes:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    StationSalesStatsResponse:
+      type: object
+      required:
+        - barStationId
+        - barStationName
+        - salesCount
+        - totalRevenue
+      properties:
+        barStationId:
+          type: integer
+          format: int64
+        barStationName:
+          type: string
+        salesCount:
+          type: integer
+          format: int64
+        totalRevenue:
+          type: number
+    User3:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        token:
+          type: string
+    UserSalesStatsResponse:
+      type: object
+      required:
+        - userId
+        - userName
+        - userEmail
+        - salesCount
+        - totalRevenue
+        - barStationId
+        - barStationName
+      properties:
+        userId:
+          type: string
+        userName:
+          type: string
+        userEmail:
+          type: string
+        salesCount:
+          type: integer
+          format: int64
+        totalRevenue:
+          type: number
+        barStationId:
+          type: integer
+          format: int64
+        barStationName:
+          type: string
+    UserSummaryResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string

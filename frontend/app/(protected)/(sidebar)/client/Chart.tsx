@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import * as d3 from "d3";
-import { InvDto } from "./page";
+import { InventoryResponse } from "@/app/generated";
 
 // ---------- Tallinn time helpers ----------
 const tallinnParts = (d: Date) => {
@@ -56,34 +56,34 @@ type HistoryDto = {
   createdAt: string;
 };
 type CurrentHistory = {
-  productInv: InvDto;
+  productInv: InventoryResponse;
   priceHistory: HistoryDto[];
 };
 
 export default function PriceHistoryGraphFancy({
   groups,
 }: {
-  groups: Record<string, InvDto[]>;
+  groups: Record<string, InventoryResponse[]>;
 }) {
   const [current, setCurrent] = useState<CurrentHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // rotation (stable across reloads)
-  const groupsRef = useRef<Record<string, InvDto[]>>({});
+  const groupsRef = useRef<Record<string, InventoryResponse[]>>({});
   useEffect(() => {
     groupsRef.current = groups;
   }, [groups]);
   const activeIdxRef = useRef(0);
-  const activeProductRef = useRef<InvDto | null>(null);
+  const activeProductRef = useRef<InventoryResponse | null>(null);
 
-  const flatten = useCallback((g: Record<string, InvDto[]>) => {
+  const flatten = useCallback((g: Record<string, InventoryResponse[]>) => {
     const catNames = Object.keys(g).sort((a, b) => a.localeCompare(b));
     return catNames.flatMap((name) =>
       [...(g[name] ?? [])].sort((a, b) => a.productId - b.productId),
     );
   }, []);
 
-  const loadPriceHistory = useCallback(async (productInv: InvDto) => {
+  const loadPriceHistory = useCallback(async (productInv: InventoryResponse) => {
     if (!productInv) return;
     try {
       setError(null);

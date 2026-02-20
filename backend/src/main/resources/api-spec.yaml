@@ -16,7 +16,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/meResponse'
+                $ref: '#/components/schemas/currentUser'
   /account/onboarding:
     post:
       tags:
@@ -563,7 +563,7 @@ paths:
 
 components:
   schemas:
-    meResponse:
+    currentUser:
       type: object
       properties:
         email:

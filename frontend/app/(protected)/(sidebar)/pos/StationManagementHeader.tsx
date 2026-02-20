@@ -4,13 +4,13 @@ import { Plus } from "lucide-react";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StationDialog } from "./StationDialog";
-import { User } from "./types";
+import { CurrentUser } from "@/app/generated";
 
 interface StationManagementHeaderProps {
   isAdmin: boolean;
   isCreateDialogOpen: boolean;
   onCreateDialogOpenChange: (open: boolean) => void;
-  allUsers: User[];
+  allUsers: CurrentUser[];
   userFetchError: string | null;
   onCreate: (data: {
     name: string;
