@@ -5,12 +5,12 @@ import { ShoppingCart, ArrowLeft, User, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CategoryFilter } from "./CategoryFilter";
-import { BarStation, CurrentUser, Category } from "./types";
+import { BarStationResponse, CategoryResponse, CurrentUser } from "@/app/generated";
 
 interface POSHeaderProps {
-  station: BarStation | null;
+  station: BarStationResponse | null;
   currentUser: CurrentUser | null;
-  categories: Category[];
+  categories: CategoryResponse[];
   selectedCategory: number | null;
   searchTerm: string;
   productCount: number;

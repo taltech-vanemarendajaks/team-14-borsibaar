@@ -8,7 +8,8 @@ import clsx from "clsx";
 import { POSHeader } from "./POSHeader";
 import { ProductCard } from "./ProductCard";
 import { CartSidebar } from "./CartSidebar";
-import { Product, Category, CartItem, CurrentUser, BarStation } from "./types";
+import { CartItem } from "./types";
+import { BarStationResponse, CategoryResponse, CurrentUser, InventoryResponse } from "@/app/generated";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,9 @@ export default function POSStation() {
   const router = useRouter();
   const stationId = params.stationId as string;
 
-  const [station, setStation] = useState<BarStation | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [station, setStation] = useState<BarStationResponse | null>(null);
+  const [products, setProducts] = useState<InventoryResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,7 +124,7 @@ export default function POSStation() {
     localStorage.setItem(`pos-cart-${stationId}`, JSON.stringify(cart));
   }, [cart, stationId]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: InventoryResponse) => {
     const existingItem = cart.find(
       (item) => item.productId === product.productId
     );

@@ -1,7 +1,7 @@
 package com.borsibaar.delegate;
 
 import com.borsibaar.api.AccountApi;
-import com.borsibaar.dto.MeResponseDto;
+import com.borsibaar.dto.CurrentUserDto;
 import com.borsibaar.dto.OnboardingRequestDto;
 import com.borsibaar.entity.Role;
 import com.borsibaar.entity.User;
@@ -27,12 +27,12 @@ public class AccountDelegateImpl extends AbstractApiDelegateImpl implements Acco
     private final RoleRepository roleRepository;
 
     @Override
-    public ResponseEntity<MeResponseDto> getUser() {
+    public ResponseEntity<CurrentUserDto> getUser() {
         try {
             // Allow users without organization (for onboarding check)
             User user = SecurityUtils.getCurrentUser(false);
 
-            MeResponseDto response = new MeResponseDto();
+            CurrentUserDto response = new CurrentUserDto();
             response.setEmail(user.getEmail());
             response.name(user.getName());
             response.setRole(user.getRole() != null ? user.getRole().getName() : null);

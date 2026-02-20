@@ -1,15 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-
-// Shape returned by backend /api/account
-export interface CurrentUser {
-  id: number | string;
-  email: string;
-  name?: string;
-  organizationId?: number;
-  needsOnboarding: boolean;
-  role?: string;
-}
+import { CurrentUser } from "@/app/generated";
 
 interface Result {
   user: CurrentUser | null;

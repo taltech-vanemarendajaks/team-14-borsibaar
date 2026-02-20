@@ -4,15 +4,16 @@ import { useRouter } from "next/navigation";
 import { Edit, Trash2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StationDialog } from "./StationDialog";
-import { BarStation, User } from "./types";
+import { User } from "./types";
+import { BarStationResponse } from "@/app/generated";
 
 interface StationCardProps {
-  station: BarStation;
+  station: BarStationResponse;
   isAdmin: boolean;
   allUsers: User[];
   userFetchError: string | null;
   editingStationId: number | null;
-  onEditClick: (station: BarStation) => void;
+  onEditClick: (station: BarStationResponse) => void;
   onEditClose: () => void;
   onUpdate: (data: {
     name: string;

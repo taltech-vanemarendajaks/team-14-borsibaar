@@ -1,9 +1,10 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { User } from "./types";
+import { CurrentUser, UserSummaryResponse } from "@/app/generated";
 
 interface UserSelectionListProps {
-  users: User[];
+  users: UserSummaryResponse[];
   selectedUserIds: string[];
   onSelectionChange: (userIds: string[]) => void;
   error?: string | null;
