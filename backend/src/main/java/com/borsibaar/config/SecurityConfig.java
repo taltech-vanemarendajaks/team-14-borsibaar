@@ -1,6 +1,7 @@
 package com.borsibaar.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,7 @@ import java.util.List;
 public class SecurityConfig {
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final DebugAutoLoginFilter debugAutoLoginFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
@@ -60,6 +62,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 // ✅ Let Spring Security add CORS headers on 401/403/preflight too
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                // Add debug auto-login filter first (only active when debug mode enabled)
+                .addFilterBefore(debugAutoLoginFilter, UsernamePasswordAuthenticationFilter.class)
                 // Add JWT authentication filter before standard authentication
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // Use IF_REQUIRED session management (stateless for API, sessions for OAuth2)
@@ -80,6 +84,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/inventory/**").permitAll()
                         // All other API requests require authentication
                         .anyRequest().authenticated())
+                // ✅ API should return 401 instead of redirecting to Google
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                    } else {
+                        response.sendRedirect("/oauth2/authorization/google");
+                    }
+                }))
                 .oauth2Login(oauth2 -> oauth2
                         .defaultSuccessUrl("/auth/login/success", true)
                         .authorizationEndpoint(auth -> auth.authorizationRequestResolver(customResolver)))
