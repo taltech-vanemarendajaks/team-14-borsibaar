@@ -87,7 +87,7 @@ export default function ClientProductsByCategory() {
         );
 
         if (!cRes.ok) {
-          const e: any = new Error(`Categories HTTP ${cRes.status}`);
+          const e = new Error(`Categories HTTP ${cRes.status}`) as Error & { status: number };
           e.status = cRes.status;
           throw e;
         }
@@ -107,9 +107,9 @@ export default function ClientProductsByCategory() {
           );
 
           if (!res.ok) {
-            const e: any = new Error(
+            const e = new Error(
               `Inventory HTTP ${res.status} (cat ${c.id})`,
-            );
+            ) as Error & { status: number };
             e.status = res.status;
             throw e;
           }
@@ -132,13 +132,14 @@ export default function ClientProductsByCategory() {
         setGroups(grouped);
         setErr(null);
         setErrStatus(null);
-      } catch (e: any) {
+      } catch (e) {
         if (!alive) return;
 
-        setErr(e?.message || "Failed to load products");
-        setErrStatus(e?.status ?? null);
+        const error = e as Error & { status?: number };
+        setErr(error?.message || "Failed to load products");
+        setErrStatus(error?.status ?? null);
 
-        if ((e?.status ?? null) === 401 && intervalRef.current) {
+        if ((error?.status ?? null) === 401 && intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }

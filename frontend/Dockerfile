@@ -2,9 +2,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Accept build argument for public backend URL
+# Accept build arguments for public environment variables
 ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_DEBUG_AUTO_LOGIN
 ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+ENV NEXT_PUBLIC_DEBUG_AUTO_LOGIN=${NEXT_PUBLIC_DEBUG_AUTO_LOGIN}
 
 # Install dependencies
 COPY frontend/package.json frontend/package-lock.json ./
