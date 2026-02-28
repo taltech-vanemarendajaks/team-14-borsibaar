@@ -27,7 +27,7 @@ services:
       - .env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       JWT_SECRET: ${JWT_SECRET}
       DEBUG_AUTO_LOGIN_ENABLED: ${DEBUG_AUTO_LOGIN:-false}
       DEBUG_AUTO_LOGIN_EMAIL: ${DEBUG_EMAIL:-debug@example.com}

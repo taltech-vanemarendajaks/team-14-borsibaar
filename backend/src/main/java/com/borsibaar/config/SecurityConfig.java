@@ -21,6 +21,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Optional;
 
 @Configuration
 @EnableWebSecurity
@@ -28,11 +29,11 @@ import java.util.List;
 public class SecurityConfig {
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final DebugAutoLoginFilter debugAutoLoginFilter;
+    private final Optional<DebugAutoLoginFilter> debugAutoLoginFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-            CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
         DefaultOAuth2AuthorizationRequestResolver defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrationRepository, "/oauth2/authorization");
 
@@ -58,33 +59,25 @@ public class SecurityConfig {
             }
         };
 
-        return http
-                .csrf(csrf -> csrf.disable())
-                // ✅ Let Spring Security add CORS headers on 401/403/preflight too
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                // Add debug auto-login filter first (only active when debug mode enabled)
-                .addFilterBefore(debugAutoLoginFilter, UsernamePasswordAuthenticationFilter.class)
-                // Add JWT authentication filter before standard authentication
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                // Use IF_REQUIRED session management (stateless for API, sessions for OAuth2)
+        http.csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource));
+
+        // ✅ Only add when bean exists (DEBUG_AUTO_LOGIN=true)
+        debugAutoLoginFilter.ifPresent(filter ->
+                http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+        );
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        // Allow OPTIONS for CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Allow OAuth2 endpoints and public routes
-                        .requestMatchers("/", "/error", "/oauth2/**", "/login/oauth2/code/**", "/auth/login/success")
-                        .permitAll()
-                        // Public API endpoints
+                        .requestMatchers("/", "/error", "/oauth2/**", "/login/oauth2/code/**", "/auth/login/success").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/organizations/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/organizations").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/organizations/**").hasRole("ADMIN")
-                        // Need to make these public for client page
-                        // TODO: these should not be fully public
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/inventory/**").permitAll()
-                        // All other API requests require authentication
                         .anyRequest().authenticated())
-                // ✅ API should return 401 instead of redirecting to Google
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
                     if (request.getRequestURI().startsWith("/api/")) {
                         response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -94,8 +87,9 @@ public class SecurityConfig {
                 }))
                 .oauth2Login(oauth2 -> oauth2
                         .defaultSuccessUrl("/auth/login/success", true)
-                        .authorizationEndpoint(auth -> auth.authorizationRequestResolver(customResolver)))
-                .build();
+                        .authorizationEndpoint(auth -> auth.authorizationRequestResolver(customResolver)));
+
+        return http.build();
     }
 
     @Value("${app.cors.allowed-origins}")
