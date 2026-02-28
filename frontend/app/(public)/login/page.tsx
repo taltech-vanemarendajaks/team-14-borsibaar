@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import AuthGate from "./AuthGate";
 import Image from "next/image";
 
 function GoogleG(props: React.SVGProps<SVGSVGElement>) {
@@ -31,6 +32,7 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070A12]">
+      <AuthGate backendUrl={publicBackendUrl} />
       <div className="grid min-h-screen lg:grid-cols-[0.9fr_1.1fr]">
         {/* LEFT: image panel */}
         <section className="relative hidden lg:block bg-[#070A12]">
