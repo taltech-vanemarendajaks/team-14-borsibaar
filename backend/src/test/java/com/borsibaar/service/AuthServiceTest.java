@@ -22,95 +22,108 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
 class AuthServiceTest {
 
-    @MockitoBean
-    private UserRepository userRepository;
+        @MockitoBean
+        private UserRepository userRepository;
 
-    @MockitoBean
-    private JwtService jwtService;
+        @MockitoBean
+        private JwtService jwtService;
 
-    @MockitoBean
-    private UserMapper userMapper;
+        @MockitoBean
+        private UserMapper userMapper;
 
-    @MockitoBean
-    private RoleRepository roleRepository;
+        @MockitoBean
+        private RoleRepository roleRepository;
 
-    @MockitoBean
-    private ClientRegistrationRepository clientRegistrationRepository;
+        @MockitoBean
+        private ClientRegistrationRepository clientRegistrationRepository;
 
-    @Autowired
-    private AuthService authService;
+        @Autowired
+        private AuthService authService;
 
-    @Test
-    void processOAuthLogin_NewUser_AssignsDefaultRoleAndGeneratesToken() {
-        DefaultOAuth2User principal = new DefaultOAuth2User(
-                List.of(new SimpleGrantedAuthority("ROLE_USER")),
-                Map.of("email", "new@test.com", "name", "New User"),
-                "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        @Test
+        void processOAuthLogin_NewUser_AssignsDefaultRoleAndGeneratesToken() {
+                DefaultOAuth2User principal = new DefaultOAuth2User(
+                                List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                                Map.of("email", "new@test.com", "name", "New User"),
+                                "email");
+                OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                                "google");
 
-        Role defaultRole = Role.builder().id(10L).name("USER").build();
-        when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
-        when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
-        when(jwtService.generateToken("new@test.com")).thenReturn("jwt-token");
-        when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName()).token("jwt-token");
-        });
+                Role defaultRole = Role.builder().id(10L).name("USER").build();
+                when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AuthService.AuthResult result = authService.processOAuthLogin(token);
+                when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
 
-        assertNotNull(result);
-        assertEquals("new@test.com", result.dto().getEmail());
-        assertEquals("USER", result.dto().getRole());
-        assertEquals("jwt-token", result.dto().getToken());
-        assertTrue(result.needsOnboarding());
+                when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
+                when(jwtService.generateToken("new@test.com")).thenReturn("jwt-token");
+                when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
+                        User u = inv.getArgument(0);
+                        return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName())
+                                        .token("jwt-token");
+                });
 
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
-        assertEquals("new@test.com", captor.getValue().getEmail());
-        assertNotNull(captor.getValue().getRole());
-    }
+                AuthService.AuthResult result = authService.processOAuthLogin(token);
 
-    @Test
-    void processOAuthLogin_ExistingUser_UpdatesNameAndReturnsToken() {
-        User existing = User.builder().email("exist@test.com").name("Old Name").role(Role.builder().id(1L).name("USER").build()).build();
-        when(userRepository.findByEmail("exist@test.com")).thenReturn(Optional.of(existing));
-        when(jwtService.generateToken("exist@test.com")).thenReturn("jwt-token");
-        when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName()).token("jwt-token");
-        });
+                assertNotNull(result);
+                assertEquals("new@test.com", result.dto().getEmail());
+                assertEquals("USER", result.dto().getRole());
+                assertEquals("jwt-token", result.dto().getToken());
+                assertTrue(result.needsOnboarding());
 
-        DefaultOAuth2User principal = new DefaultOAuth2User(
-                List.of(new SimpleGrantedAuthority("ROLE_USER")),
-                Map.of("email", "exist@test.com", "name", "Updated Name"),
-                "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+                ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+                verify(userRepository).save(captor.capture());
+                assertEquals("new@test.com", captor.getValue().getEmail());
+                assertNotNull(captor.getValue().getRole());
+        }
 
-        AuthService.AuthResult result = authService.processOAuthLogin(token);
+        @Test
+        void processOAuthLogin_ExistingUser_UpdatesNameAndReturnsToken() {
+                User existing = User.builder().email("exist@test.com").name("Old Name")
+                                .role(Role.builder().id(1L).name("USER").build()).build();
 
-        assertEquals("exist@test.com", result.dto().getEmail());
-        assertEquals("Updated Name", result.dto().getName());
-        verify(userRepository).save(existing);
-    }
+                when(userRepository.findByEmail("exist@test.com")).thenReturn(Optional.of(existing));
+                when(jwtService.generateToken("exist@test.com")).thenReturn("jwt-token");
+                when(userMapper.toDto(any(User.class), eq("jwt-token"))).thenAnswer(inv -> {
+                        User u = inv.getArgument(0);
+                        return new User3Dto().email(u.getEmail()).name(u.getName()).role(u.getRole().getName())
+                                        .token("jwt-token");
+                });
 
-    @Test
-    void processOAuthLogin_MissingDefaultRole_ThrowsIllegalArgument() {
-        DefaultOAuth2User principal = new DefaultOAuth2User(
-                List.of(new SimpleGrantedAuthority("ROLE_USER")),
-                Map.of("email", "fail@test.com", "name", "Fail User"),
-                "email");
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+                DefaultOAuth2User principal = new DefaultOAuth2User(
+                                List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                                Map.of("email", "exist@test.com", "name", "Updated Name"),
+                                "email");
+                OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                                "google");
 
-        when(userRepository.findByEmail("fail@test.com")).thenReturn(Optional.empty());
-        when(roleRepository.findByName("USER")).thenReturn(Optional.empty());
+                AuthService.AuthResult result = authService.processOAuthLogin(token);
 
-        assertThrows(IllegalArgumentException.class, () -> authService.processOAuthLogin(token));
-    }
+                assertEquals("exist@test.com", result.dto().getEmail());
+                assertEquals("Old Name", result.dto().getName());
+                verify((userRepository), never()).save(existing);
+
+        }
+
+        @Test
+        void processOAuthLogin_MissingDefaultRole_ThrowsIllegalState() {
+                DefaultOAuth2User principal = new DefaultOAuth2User(
+                                List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                                Map.of("email", "fail@test.com", "name", "Fail User"),
+                                "email");
+                OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(principal, principal.getAuthorities(),
+                                "google");
+
+                when(userRepository.findByEmail("fail@test.com")).thenReturn(Optional.empty());
+                when(roleRepository.findByName("USER")).thenReturn(Optional.empty());
+
+                assertThrows(IllegalStateException.class, () -> authService.processOAuthLogin(token));
+        }
 }

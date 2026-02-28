@@ -46,13 +46,13 @@ public class CategoryService {
         return categoryMapper.toResponse(categoryRepository.save(category));
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CategoryResponseDto> getAllByOrg(Long organizationId) {
         return categoryRepository.findAllByOrganizationId(organizationId)
                 .stream().map(categoryMapper::toResponse).toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CategoryResponseDto getByIdAndOrg(Long id, Long organizationId) {
         Optional<Category> category = categoryRepository.findByIdAndOrganizationId(id, organizationId);
 
