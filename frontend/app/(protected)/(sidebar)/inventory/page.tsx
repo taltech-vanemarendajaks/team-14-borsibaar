@@ -160,7 +160,7 @@ export default function Inventory() {
       !productForm.currentPrice &&
       !productForm.minPrice &&
       !productForm.maxPrice
-    ) return "";
+    ) return null;
     if (productForm.currentPrice && productForm.minPrice && price < min) {
       if (lastChangedPriceField == "minPrice") {
         return "Min price must be less than Price.";
@@ -182,8 +182,17 @@ export default function Inventory() {
         return "Price must be less than Max price.";
       }
     }
-    return "";
+    return null;
   })();
+
+  const isFormIncomplete =
+    !productForm.name ||
+    !productForm.categoryId ||
+    !productForm.currentPrice ||
+    !productForm.minPrice ||
+    !productForm.maxPrice;
+
+  const isFormInvalid = isFormIncomplete || priceValidationError;
 
   const handleCreateProduct = async () => {
     if (priceValidationError) return;
@@ -824,14 +833,7 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleCreateProduct}
-              disabled={
-                !productForm.name ||
-                !productForm.categoryId ||
-                !productForm.currentPrice ||
-                !productForm.minPrice ||
-                !productForm.maxPrice ||
-                !!priceValidationError
-              }
+              disabled={isFormInvalid}
               className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               Create Product
