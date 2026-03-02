@@ -85,6 +85,9 @@ export default function Inventory() {
     initialQuantity: "",
     notes: "",
   });
+  const [lastChangedPriceField, setLastChangedPriceField] = useState<
+    "currentPrice" | "minPrice" | "maxPrice" | null
+  >(null);
 
   useEffect(() => {
     fetchInventory();
@@ -148,7 +151,52 @@ export default function Inventory() {
     }
   };
 
+  const priceValidationError = (() => {
+    const price = Number(productForm.currentPrice);
+    const min = Number(productForm.minPrice);
+    const max = Number(productForm.maxPrice);
+
+    if (
+      !productForm.currentPrice &&
+      !productForm.minPrice &&
+      !productForm.maxPrice
+    ) return null;
+    if (productForm.currentPrice && productForm.minPrice && price < min) {
+      if (lastChangedPriceField == "minPrice") {
+        return "Min price must be less than Price.";
+      } else {
+        return "Price must be greater than Min price.";
+      }
+    }
+    if (productForm.minPrice && productForm.maxPrice && max < min) {
+      if (lastChangedPriceField == "minPrice") {
+        return "Min price must be less than Max price.";
+      } else {
+        return "Max price must be greater than Min price.";
+      }
+    }
+    if (productForm.maxPrice && productForm.currentPrice && max < price) {
+      if (lastChangedPriceField == "maxPrice") {
+        return "Max price must be greater than Price.";
+      } else {
+        return "Price must be less than Max price.";
+      }
+    }
+    return null;
+  })();
+
+  const isFormIncomplete =
+    !productForm.name ||
+    !productForm.categoryId ||
+    !productForm.currentPrice ||
+    !productForm.minPrice ||
+    !productForm.maxPrice;
+
+  const isFormInvalid = isFormIncomplete || priceValidationError;
+
   const handleCreateProduct = async () => {
+    if (priceValidationError) return;
+
     try {
       const productResponse = await fetch("/api/backend/product", {
         method: "POST",
@@ -667,16 +715,20 @@ export default function Inventory() {
                 step="0.01"
                 min="0"
                 value={productForm.currentPrice}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setLastChangedPriceField("currentPrice");
                   setProductForm({
                     ...productForm,
                     currentPrice: e.target.value,
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
                 required
               />
+              {lastChangedPriceField === "currentPrice" && priceValidationError && (
+                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -687,16 +739,20 @@ export default function Inventory() {
                 step="0.01"
                 min="0"
                 value={productForm.minPrice}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setLastChangedPriceField("minPrice");
                   setProductForm({
                     ...productForm,
                     minPrice: e.target.value,
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
                 required
               />
+              {lastChangedPriceField === "minPrice" && priceValidationError && (
+                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -707,16 +763,20 @@ export default function Inventory() {
                 step="0.01"
                 min="0"
                 value={productForm.maxPrice}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setLastChangedPriceField("maxPrice");
                   setProductForm({
                     ...productForm,
                     maxPrice: e.target.value,
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
                 required
               />
+              {lastChangedPriceField === "maxPrice" && priceValidationError && (
+                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -773,13 +833,7 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleCreateProduct}
-              disabled={
-                !productForm.name ||
-                !productForm.categoryId ||
-                !productForm.currentPrice ||
-                !productForm.minPrice ||
-                !productForm.maxPrice
-              }
+              disabled={isFormInvalid}
               className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               Create Product
