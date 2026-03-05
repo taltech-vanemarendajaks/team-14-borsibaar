@@ -1,10 +1,10 @@
 "use client";
 
+import { CategoryResponse } from "@/app/generated";
 import { Button } from "@/components/ui/button";
-import { Category } from "./types";
 
 interface CategoryFilterProps {
-  categories: Category[];
+  categories: CategoryResponse[];
   selectedCategory: number | null;
   onCategoryChange: (categoryId: number | null) => void;
 }

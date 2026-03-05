@@ -2,41 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { CurrentUser, StationSalesStatsResponse, UserSalesStatsResponse } from "@/app/generated";
 
 export const dynamic = "force-dynamic"; // still opt-out of caching
-
-interface CurrentUser {
-  id: number | string;
-  email: string;
-  name?: string;
-  organizationId?: number;
-  needsOnboarding?: boolean;
-  role?: string;
-}
-
-interface UserSalesStats {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  salesCount: number;
-  totalRevenue: number;
-  barStationId: number | null;
-  barStationName: string | null;
-}
-
-interface StationSalesStats {
-  barStationId: number;
-  barStationName: string | null;
-  salesCount: number;
-  totalRevenue: number;
-}
 
 export default function Dashboard() {
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [orgName, setOrgName] = useState("-");
-  const [salesStats, setSalesStats] = useState<UserSalesStats[]>([]);
-  const [stationStats, setStationStats] = useState<StationSalesStats[]>([]);
+  const [salesStats, setSalesStats] = useState<UserSalesStatsResponse[]>([]);
+  const [stationStats, setStationStats] = useState<StationSalesStatsResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [orgDetails, setOrgDetails] = useState<{
     name: string;

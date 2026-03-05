@@ -2,12 +2,13 @@
 
 import { Package } from "lucide-react";
 import clsx from "clsx";
-import { Product, CartItem } from "./types";
+import { CartItem } from "./types";
+import { InventoryResponse } from "@/app/generated";
 
 interface ProductCardProps {
-  product: Product;
+  product: InventoryResponse;
   cartItem?: CartItem;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: InventoryResponse) => void;
 }
 
 export function ProductCard({

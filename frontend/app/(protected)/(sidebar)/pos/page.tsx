@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Store } from "lucide-react";
 import { StationManagementHeader } from "./StationManagementHeader";
 import { StationCard } from "./StationCard";
-import { CurrentUser, BarStation, User } from "./types";
+import { User } from "./types";
+import { BarStationResponse, CurrentUser } from "@/app/generated";
 
 export const dynamic = "force-dynamic";
 
 export default function POSManagement() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [stations, setStations] = useState<BarStation[]>([]);
+  const [stations, setStations] = useState<BarStationResponse[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,7 +182,7 @@ export default function POSManagement() {
     }
   };
 
-  const handleEditClick = (station: BarStation) => {
+  const handleEditClick = (station: BarStationResponse) => {
     setEditingStationId(station.id);
   };
 

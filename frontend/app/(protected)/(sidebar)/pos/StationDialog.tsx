@@ -13,11 +13,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserSelectionList } from "./UserSelectionList";
-import { BarStation, User } from "./types";
+import { User } from "./types";
+import { BarStationResponse } from "@/app/generated";
 
 interface StationDialogProps {
   mode: "create" | "edit";
-  station?: BarStation;
+  station?: BarStationResponse;
   users: User[];
   userFetchError: string | null;
   isOpen: boolean;

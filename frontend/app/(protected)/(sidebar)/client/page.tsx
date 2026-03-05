@@ -4,6 +4,7 @@ import clsx from "clsx";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "./Chart";
 import Image from "next/image";
+import { CategoryResponse, InventoryResponse } from "@/app/generated";
 
 function GoogleG(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -28,19 +29,6 @@ function GoogleG(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-type Category = { id: number; name: string; organizationId?: number };
-export type InvDto = {
-  id: number;
-  organizationId: number;
-  productId: number;
-  productName: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  basePrice: number;
-  updatedAt: string;
-};
-
 const money = (n: number) =>
   new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" }).format(
     n,
@@ -55,8 +43,8 @@ const sponsors = [
 ];
 
 export default function ClientProductsByCategory() {
-  const [cats, setCats] = useState<Category[]>([]);
-  const [groups, setGroups] = useState<Record<string, InvDto[]>>({});
+  const [cats, setCats] = useState<CategoryResponse[]>([]);
+  const [groups, setGroups] = useState<Record<string, InventoryResponse[]>>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [errStatus, setErrStatus] = useState<number | null>(null);
@@ -93,7 +81,7 @@ export default function ClientProductsByCategory() {
         }
 
         const cJson = await cRes.json();
-        const categoryList: Category[] = Array.isArray(cJson)
+        const categoryList: CategoryResponse[] = Array.isArray(cJson)
           ? cJson
           : (cJson?.items ?? cJson?.content ?? []);
 
@@ -115,7 +103,7 @@ export default function ClientProductsByCategory() {
           }
 
           const j = await res.json();
-          const arr: InvDto[] = Array.isArray(j)
+          const arr: InventoryResponse[] = Array.isArray(j)
             ? j
             : (j?.items ?? j?.content ?? []);
 
