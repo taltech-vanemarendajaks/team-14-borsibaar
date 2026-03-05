@@ -45,13 +45,11 @@ public class DebugAutoLoginFilter extends OncePerRequestFilter {
     private final RoleRepository roleRepository;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
-    @Value("${DEBUG_AUTO_LOGIN_ENABLED:false}")
-    private boolean enabled;
 
-    @Value("${DEBUG_AUTO_LOGIN_EMAIL:debug@example.com}")
+    @Value("${debug.auto-login.email:debug@example.com}")
     private String debugEmail;
 
-    @Value("${DEBUG_AUTO_LOGIN_NAME:Debug User}")
+    @Value("${debug.auto-login.name:Debug User}")
     private String debugName;
 
     @Value("${app.frontend.url:http://localhost:3000}")
@@ -62,10 +60,6 @@ public class DebugAutoLoginFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        if (!enabled) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         // If already authenticated, do nothing
         if (SecurityContextHolder.getContext().getAuthentication() != null) {

@@ -49,7 +49,6 @@ services:
       - "3000:3000"
     environment:
       BACKEND_URL: http://backend:8080
-      NEXT_PUBLIC_DEBUG_AUTO_LOGIN: ${DEBUG_AUTO_LOGIN:-false}
     depends_on:
       - backend
 

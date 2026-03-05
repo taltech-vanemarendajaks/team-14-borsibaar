@@ -21,10 +21,12 @@ export default function AuthGate({backendUrl}: { backendUrl: string }) {
                 });
 
                 if (!cancelled && res.ok) {
-                    // Optionally:
-                    // const me = await res.json();
-                    // if (me.organizationId) router.replace("/dashboard"); else router.replace("/onboarding");
-                    router.replace("/dashboard");
+                    const me = await res.json();
+                    if (me && me.organizationId) {
+                        router.replace("/dashboard");
+                    } else {
+                        router.replace("/onboarding");
+                    }
                 }
             } catch {
                 // backend down etc. -> stay on login
