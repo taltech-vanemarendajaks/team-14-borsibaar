@@ -12,7 +12,4 @@ public interface BarStationRepository extends JpaRepository<BarStation, Long> {
     List<BarStation> findByOrganizationId(Long organizationId);
     
     Optional<BarStation> findByOrganizationIdAndId(Long organizationId, Long id);
-    
-    List<BarStation> findByOrganizationIdAndIsActiveTrue(Long organizationId);
 }
-

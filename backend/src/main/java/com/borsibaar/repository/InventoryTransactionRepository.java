@@ -7,16 +7,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface InventoryTransactionRepository extends JpaRepository<InventoryTransaction, Long> {
 
     List<InventoryTransaction> findByInventoryIdOrderByCreatedAtDesc(Long inventoryId);
-
-    Optional<InventoryTransaction> findFirstByInventoryIdOrderByCreatedAtDesc(Long inventoryId);
-
-    List<InventoryTransaction> findByReferenceId(String referenceId);
 
     @Query("""
             SELECT it FROM InventoryTransaction it
