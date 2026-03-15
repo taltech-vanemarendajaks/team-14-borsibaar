@@ -13,7 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { ChartLine, Home, LogOut, Package, ShoppingCart } from "lucide-react";
+import { User, ChartLine, Home, LogOut, Package, ShoppingCart } from "lucide-react";
 
 // Menu items.
 const items = [
@@ -36,6 +36,11 @@ const items = [
     title: "TV Dashboard",
     url: "/worker/tv",
     icon: ChartLine,
+  },
+  {
+    title: "Worker",
+    url: "/worker",
+    icon: User,
   },
 ];
 
