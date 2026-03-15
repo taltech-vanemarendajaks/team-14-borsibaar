@@ -8,6 +8,7 @@ import com.borsibaar.exception.DuplicateResourceException;
 import com.borsibaar.exception.NotFoundException;
 import com.borsibaar.mapper.CategoryMapper;
 import com.borsibaar.repository.CategoryRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,14 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
-
-    public CategoryService(CategoryRepository categoryRepository, CategoryMapper categoryMapper) {
-        this.categoryRepository = categoryRepository;
-        this.categoryMapper = categoryMapper;
-    }
 
     @Transactional
     public CategoryResponseDto create(CategoryRequestDto request, Long organizationId) {

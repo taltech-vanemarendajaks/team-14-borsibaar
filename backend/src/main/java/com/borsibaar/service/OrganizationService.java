@@ -5,6 +5,7 @@ import com.borsibaar.dto.OrganizationResponseDto;
 import com.borsibaar.entity.Organization;
 import com.borsibaar.mapper.OrganizationMapper;
 import com.borsibaar.repository.OrganizationRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,15 +15,11 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
     private final OrganizationMapper organizationMapper;
-
-    public OrganizationService(OrganizationRepository organizationRepository, OrganizationMapper organizationMapper) {
-        this.organizationRepository = organizationRepository;
-        this.organizationMapper = organizationMapper;
-    }
 
     @Transactional
     public OrganizationResponseDto create(OrganizationRequestDto request) {
