@@ -82,19 +82,18 @@ class JwtAuthenticationFilterTest {
 
         String invalidToken = "invalid.jwt.token";
 
-        // Act & Assert: Request with invalid JWT should redirect to OAuth2 login (302)
-        // Spring Security redirects unauthenticated requests
+        // Act & Assert: Request with invalid JWT to API endpoint should return 401 Unauthorized
+        // Spring Security intercepts unauthenticated API requests with a 401
         mockMvc.perform(get("/api/users")
                 .cookie(new Cookie("jwt", invalidToken)))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void testFilter_WithoutJwtCookie_DoesNotAuthenticate() throws Exception {
-        // Act & Assert: Request without JWT cookie should redirect to OAuth2 login
-        // (302)
+        // Act & Assert: Request without JWT cookie to API endpoint should return 401
         mockMvc.perform(get("/api/users"))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -109,11 +108,10 @@ class JwtAuthenticationFilterTest {
         // Arrange: Generate valid JWT token
         String token = jwtService.generateToken("nonexistent@example.com");
 
-        // Act & Assert: Request with valid token but non-existent user should redirect
-        // (302)
+        // Act & Assert: Request with valid token but non-existent user should return 401
         mockMvc.perform(get("/api/users")
                 .cookie(new Cookie("jwt", token)))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -151,10 +149,10 @@ class JwtAuthenticationFilterTest {
         String token = jwtService.generateToken(email);
         String expiredToken = token.substring(0, token.length() - 10) + "EXPIREDXXX";
 
-        // Act & Assert: Request with expired/invalid token should redirect (302)
+        // Act & Assert: Request with expired/invalid token should return 401
         mockMvc.perform(get("/api/users")
                 .cookie(new Cookie("jwt", expiredToken)))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -194,10 +192,10 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void testFilter_WithEmptyJwtCookie_DoesNotAuthenticate() throws Exception {
-        // Act & Assert: Request with empty JWT cookie should redirect (302)
+        // Act & Assert: Request with empty JWT cookie should return 401
         mockMvc.perform(get("/api/users")
                 .cookie(new Cookie("jwt", "")))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
