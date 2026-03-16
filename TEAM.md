@@ -6,6 +6,7 @@ Team members (Github username):
 - Maria Klammer (MariaKlam)
 - Markus Sirts (Torm0r)
 - Andri Kosemaa (andrikosemaa)
+- Ott Küüsmaa (ott-k)
 
 Description of your team workflow:
 We use feature branches and merge requests, where at least one other team member must approve the request.
