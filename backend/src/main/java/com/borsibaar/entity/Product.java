@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "products")
@@ -27,6 +29,9 @@ public class Product {
 
     @Column(name = "description", length = 1000)
     private String description;
+
+    @Column(name = "image_url")
+    private String imageUrl;
 
     @Column(name = "base_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal basePrice;
@@ -56,4 +61,7 @@ public class Product {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "organization_id", insertable = false, updatable = false)
     private Organization organization;
+
+    @OneToMany(mappedBy = "product")
+    private Set<PromoItem> promoItems = new HashSet<>();
 }

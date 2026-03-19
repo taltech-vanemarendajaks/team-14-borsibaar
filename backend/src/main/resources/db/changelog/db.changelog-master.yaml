@@ -1010,74 +1010,217 @@ databaseChangeLog:
                   value: CUSTOMER
 
   - changeSet:
-      id: 016-drop-and-create-indexes
-      author: andri
+      id: 017-add-image-url-to-products
+      author: edvard
       changes:
-        - createIndex:
-            tableName: users
-            indexName: idx_user_email
+        - addColumn:
+            tableName: products
             columns:
               - column:
-                  name: email
-        - createIndex:
-            tableName: users
-            indexName: idx_user_role_id
+                  name: image_url
+                  type: VARCHAR(500)
+                  remarks: "URL to product image"
+
+  - changeSet:
+      id: 018-create-orders-table
+      author: edvard
+      changes:
+        - createTable:
+            tableName: orders
             columns:
-              - column:
-                  name: role_id
-        - createIndex:
-            tableName: users
-            indexName: idx_user_organization_id
-            columns:
-              - column:
-                  name: organization_id
-        - createIndex:
-            tableName: categories
-            indexName: idx_categories_organization_id_id
-            columns:
-              - column:
-                  name: organization_id
               - column:
                   name: id
-        - dropIndex:
-            indexName: idx_inventory_org
-            schemaName: public
-            tableName: inventory
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_orders
+              - column:
+                  name: user_id
+                  type: UUID
+                  remarks: "Optional user ID for authenticated users"
+              - column:
+                  name: session_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: state
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total
+                  type: DECIMAL(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: orders
+            baseColumnNames: user_id
+            constraintName: fk_orders_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+            onUpdate: RESTRICT
         - createIndex:
-            tableName: inventory
-            indexName: idx_inventory_organization_id_product_id
+            tableName: orders
+            indexName: idx_orders_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: orders
+            indexName: idx_orders_session_id
+            columns:
+              - column:
+                  name: session_id
+        - createIndex:
+            tableName: orders
+            indexName: idx_orders_state
+            columns:
+              - column:
+                  name: state
+
+  - changeSet:
+      id: 019-create-promos
+      author: edvar
+      changes:
+        - createTable:
+            tableName: promos
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_promos
+              - column:
+                  name: organization_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: discount_percent
+                  type: FLOAT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(120)
+              - column:
+                  name: description
+                  type: VARCHAR(500)
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: promos
+            baseColumnNames: organization_id
+            constraintName: fk_promos_organization
+            referencedTableName: organizations
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: RESTRICT
+        - createIndex:
+            tableName: promos
+            indexName: idx_promos_organization_id
             columns:
               - column:
                   name: organization_id
+        - createIndex:
+            tableName: promos
+            indexName: idx_promos_is_active
+            columns:
+              - column:
+                  name: is_active
+
+  - changeSet:
+      id: 020-create-promo-items
+      author: edvar
+      changes:
+        - createTable:
+            tableName: promo_items
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_promo_items
+              - column:
+                  name: promo_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
               - column:
                   name: product_id
-        - dropIndex:
-            indexName: idx_bar_stations_org
-            schemaName: public
-            tableName: bar_stations
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_from
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_until
+                  type: DATE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: promo_items
+            baseColumnNames: promo_id
+            constraintName: fk_promo_items_promo
+            referencedTableName: promos
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: promo_items
+            baseColumnNames: product_id
+            constraintName: fk_promo_items_product
+            referencedTableName: products
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: RESTRICT
         - createIndex:
-            tableName: bar_stations
-            indexName: idx_bar_stations_organization_id_id
+            tableName: promo_items
+            indexName: idx_promo_items_promo_id
             columns:
               - column:
-                  name: organization_id
-              - column:
-                  name: id
+                  name: promo_id
         - createIndex:
-            tableName: inventory_transactions
-            indexName: idx_inventory_transaction_inventory_created_at
+            tableName: promo_items
+            indexName: idx_promo_items_product_id
             columns:
               - column:
-                  name: inventory_id
-              - column:
-                  name: created_at
-                  descending: true
+                  name: product_id
         - createIndex:
-            tableName: inventory_transactions
-            indexName: idx_inventory_transaction_type_created_at
+            tableName: promo_items
+            indexName: idx_promo_items_valid_dates
             columns:
               - column:
-                  name: transaction_type
+                  name: valid_from
               - column:
-                  name: created_at
-                  descending: true
+                  name: valid_until
