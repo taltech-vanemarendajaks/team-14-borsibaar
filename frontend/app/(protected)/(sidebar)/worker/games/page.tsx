@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Gamepad2 } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
 
 export default function GamesPage() {
-  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background p-6">
