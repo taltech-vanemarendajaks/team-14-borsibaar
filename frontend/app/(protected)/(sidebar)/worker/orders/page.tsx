@@ -102,7 +102,7 @@ export default function BarWorker() {
     <div className="flex items-center justify-between bg-card border rounded-lg p-4">
       <div className="flex flex-col">
         <span className="font-semibold text-gray-100">{order.id}</span>
-        <span className="text-sm text-gray-400">Table {order.table}</span>
+        <span className="text-sm text-gray-400">{order.table}</span>
         <span className="text-sm text-gray-300">{order.items.join(", ")}</span>
       </div>
 
