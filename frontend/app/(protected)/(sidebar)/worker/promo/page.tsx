@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Gift } from "lucide-react";
+import { Gift } from "lucide-react";
 
 export default function PromoPage() {
-  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background p-6">
