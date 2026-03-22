@@ -19,22 +19,22 @@ import { ChartLine, Home, LogOut, Package, ShoppingCart } from "lucide-react";
 const items = [
   {
     title: "Dashboard",
-    url: "" + "/dashboard",
+    url: "/worker/dashboard",
     icon: Home,
   },
   {
     title: "POS",
-    url: "/pos",
+    url: "/worker/pos",
     icon: ShoppingCart,
   },
   {
     title: "Inventory",
-    url: "/inventory",
+    url: "/worker/inventory",
     icon: Package,
   },
   {
-    title: "Client",
-    url: "/client",
+    title: "TV Dashboard",
+    url: "/worker/tv",
     icon: ChartLine,
   },
 ];
@@ -68,7 +68,7 @@ function SidebarFooterContent() {
   const handleLogout = async () => {
     try {
       await fetch("/api/logout", { method: "POST" });
-      window.location.href = "/login";
+      window.location.href = "/worker/login";
     } catch (error) {
       console.error("Logout failed:", error);
     }
