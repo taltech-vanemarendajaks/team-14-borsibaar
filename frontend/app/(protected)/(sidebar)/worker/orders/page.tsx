@@ -61,7 +61,7 @@ export default function BarWorker() {
       <div className="min-h-screen w-full bg-background p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading orders...</p>
+          <p className="text-gray-600">Laen tellimusi...</p>
         </div>
       </div>
     );
@@ -83,9 +83,9 @@ export default function BarWorker() {
       <div className="min-h-screen w-full bg-background p-6 flex items-center justify-center">
         <div className="text-center">
           <ClipboardList className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-xl text-gray-100 mb-2">No orders available</p>
+          <p className="text-xl text-gray-100 mb-2">Ühtegi tellimust ei ole</p>
           <p className="text-sm text-gray-400">
-            Orders will appear here when customers place them.
+            Tellimused ilmuvad siia, kui kliendid on need esitanud.
           </p>
         </div>
       </div>
