@@ -23,9 +23,9 @@ export default function AuthGate({backendUrl}: { backendUrl: string }) {
                 if (!cancelled && res.ok) {
                     const me = await res.json();
                     if (me && me.organizationId) {
-                        router.replace("/dashboard");
+                        router.replace("/worker/dashboard");
                     } else {
-                        router.replace("/onboarding");
+                        router.replace("/worker/onboarding");
                     }
                 }
             } catch {
