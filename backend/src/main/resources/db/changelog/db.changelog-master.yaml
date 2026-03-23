@@ -1010,7 +1010,81 @@ databaseChangeLog:
                   value: CUSTOMER
 
   - changeSet:
-      id: 017-add-image-url-to-products
+      id: 017-drop-and-create-indexes
+      author: andri
+      changes:
+        - createIndex:
+            tableName: users
+            indexName: idx_user_email
+            columns:
+              - column:
+                  name: email
+        - createIndex:
+            tableName: users
+            indexName: idx_user_role_id
+            columns:
+              - column:
+                  name: role_id
+        - createIndex:
+            tableName: users
+            indexName: idx_user_organization_id
+            columns:
+              - column:
+                  name: organization_id
+        - createIndex:
+            tableName: categories
+            indexName: idx_categories_organization_id_id
+            columns:
+              - column:
+                  name: organization_id
+              - column:
+                  name: id
+        - dropIndex:
+            indexName: idx_inventory_org
+            schemaName: public
+            tableName: inventory
+        - createIndex:
+            tableName: inventory
+            indexName: idx_inventory_organization_id_product_id
+            columns:
+              - column:
+                  name: organization_id
+              - column:
+                  name: product_id
+        - dropIndex:
+            indexName: idx_bar_stations_org
+            schemaName: public
+            tableName: bar_stations
+        - createIndex:
+            tableName: bar_stations
+            indexName: idx_bar_stations_organization_id_id
+            columns:
+              - column:
+                  name: organization_id
+              - column:
+                  name: id
+        - createIndex:
+            tableName: inventory_transactions
+            indexName: idx_inventory_transaction_inventory_created_at
+            columns:
+              - column:
+                  name: inventory_id
+              - column:
+                  name: created_at
+                  descending: true
+        - createIndex:
+            tableName: inventory_transactions
+            indexName: idx_inventory_transaction_type_created_at
+            columns:
+              - column:
+                  name: transaction_type
+              - column:
+                  name: created_at
+                  descending: true
+
+
+  - changeSet:
+      id: 018-add-image-url-to-products
       author: edvard
       changes:
         - addColumn:
@@ -1022,7 +1096,7 @@ databaseChangeLog:
                   remarks: "URL to product image"
 
   - changeSet:
-      id: 018-create-orders-table
+      id: 019-create-orders-table
       author: edvard
       changes:
         - createTable:
@@ -1090,7 +1164,7 @@ databaseChangeLog:
                   name: state
 
   - changeSet:
-      id: 019-create-promos
+      id: 020-create-promos
       author: edvar
       changes:
         - createTable:
@@ -1155,7 +1229,7 @@ databaseChangeLog:
                   name: is_active
 
   - changeSet:
-      id: 020-create-promo-items
+      id: 021-create-promo-items
       author: edvar
       changes:
         - createTable:
