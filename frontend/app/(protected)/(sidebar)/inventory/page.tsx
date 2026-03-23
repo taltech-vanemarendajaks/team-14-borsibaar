@@ -31,7 +31,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { CategoryResponse, InventoryResponse, InventoryTransactionResponse } from "@/app/generated";
+import {
+  CategoryResponse,
+  InventoryResponse,
+  InventoryTransactionResponse,
+} from "@/app/generated";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +48,8 @@ export default function Inventory() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<InventoryResponse | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<InventoryResponse | null>(null);
   const [transactionHistory, setTransactionHistory] = useState<
     InventoryTransactionResponse[]
   >([]);
@@ -75,6 +80,18 @@ export default function Inventory() {
   const [lastChangedPriceField, setLastChangedPriceField] = useState<
     "currentPrice" | "minPrice" | "maxPrice" | null
   >(null);
+
+  // sorting state
+  const [sortField, setSortField] = useState<
+    | "productName"
+    | "basePrice"
+    | "minPrice"
+    | "maxPrice"
+    | "quantity"
+    | "updatedAt"
+  >("productName");
+
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     fetchInventory();
@@ -123,7 +140,7 @@ export default function Inventory() {
         `/api/backend/inventory/product/${productId}/history`,
         {
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to fetch history");
@@ -147,7 +164,8 @@ export default function Inventory() {
       !productForm.currentPrice &&
       !productForm.minPrice &&
       !productForm.maxPrice
-    ) return null;
+    )
+      return null;
     if (productForm.currentPrice && productForm.minPrice && price < min) {
       if (lastChangedPriceField == "minPrice") {
         return "Min price must be less than Price.";
@@ -274,13 +292,18 @@ export default function Inventory() {
   };
 
   const handleRemoveStock = async () => {
+    if (!selectedProduct) {
+      alert("No product selected");
+      return;
+    }
+
     try {
       const response = await fetch("/api/backend/inventory/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          // @ts-expect-error: types aren't imported currently from backend
+          // modal action depends on selected product being available
           productId: selectedProduct.productId,
           quantity: parseFloat(formData.quantity),
           referenceId: formData.referenceId,
@@ -305,13 +328,18 @@ export default function Inventory() {
   };
 
   const handleAdjustStock = async () => {
+    if (!selectedProduct) {
+      alert("No product selected");
+      return;
+    }
+
     try {
       const response = await fetch("/api/backend/inventory/adjust", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          // @ts-expect-error: types aren't imported currently from backend
+          // modal action depends on selected product being available
           productId: selectedProduct.productId,
           newQuantity: parseFloat(formData.quantity),
           notes: formData.notes,
@@ -360,7 +388,7 @@ export default function Inventory() {
         alert("An unknown error occurred");
       }
     }
-  }
+  };
 
   const handleDeleteProduct = async (id: number) => {
     if (id === undefined) return;
@@ -384,7 +412,7 @@ export default function Inventory() {
         alert("An unknown error occurred");
       }
     }
-  }
+  };
 
   const closeModals = () => {
     setShowAddModal(false);
@@ -409,7 +437,7 @@ export default function Inventory() {
   const openDeleteModal = (item) => {
     setSelectedProduct(item);
     setShowDeleteProductModal(true);
-  }
+  };
 
   // @ts-expect-error: types aren't imported currently from backend
   const openRemoveModal = (item) => {
@@ -417,10 +445,15 @@ export default function Inventory() {
     setShowRemoveModal(true);
   };
 
-  // @ts-expect-error: types aren't imported currently from backend
+  // @ts-expect-error: backend types are incomplete here for modal item shape
   const openAdjustModal = (item) => {
     setSelectedProduct(item);
-    setFormData({ ...formData, quantity: item.quantity.toString() });
+    setFormData({
+      ...formData,
+      // quantity can be null from backend, so keep the field empty instead of crashing
+      quantity:
+        typeof item.quantity === "number" ? item.quantity.toString() : "",
+    });
     setShowAdjustModal(true);
   };
 
@@ -431,23 +464,91 @@ export default function Inventory() {
     await fetchTransactionHistory(item.productId);
   };
 
-  const filteredInventory = searchTerm?.trim().length > 0 ? inventory.filter((item) => {
-    return item.productName.toLowerCase().includes(searchTerm.toLowerCase())
-  }
-  ) : inventory;
+  const filteredInventory =
+    searchTerm?.trim().length > 0
+      ? inventory.filter((item) => {
+          // some products may come back without a name, so default to empty string for search
+          return (item.productName ?? "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase());
+        })
+      : inventory;
 
-  // @ts-expect-error: types aren't imported currently from backend
-  const getStockStatus = (quantity) => {
-    const qty = parseFloat(quantity);
-    if (qty === 0)
-      return { color: "text-red-100", bg: "bg-red-900", label: "Out of Stock" };
-    if (qty < 10)
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+    const direction = sortDirection === "asc" ? 1 : -1;
+
+    if (sortField === "productName") {
+      return (
+        (a.productName ?? "").localeCompare(b.productName ?? "") * direction
+      );
+    }
+
+    if (sortField === "updatedAt") {
+      return (
+        ((a.updatedAt ? new Date(a.updatedAt).getTime() : 0) -
+          (b.updatedAt ? new Date(b.updatedAt).getTime() : 0)) *
+        direction
+      );
+    }
+
+    const aValue = typeof a[sortField] === "number" ? a[sortField] : -Infinity;
+    const bValue = typeof b[sortField] === "number" ? b[sortField] : -Infinity;
+
+    return (aValue - bValue) * direction;
+  });
+
+  // sort tuleb pärast filterit, et search ja sort töötaks koos
+
+  const getStockStatus = (quantity: number | null | undefined) => {
+    // guard against null values from backend so the table can still render
+    if (typeof quantity !== "number" || Number.isNaN(quantity)) {
+      return {
+        color: "text-gray-400",
+        bg: "bg-gray-700",
+        label: "Unknown",
+      };
+    }
+
+    if (quantity === 0) {
+      return {
+        color: "text-red-100",
+        bg: "bg-red-900",
+        label: "Out of Stock",
+      };
+    }
+
+    if (quantity < 10) {
       return {
         color: "text-yellow-600",
         bg: "bg-yellow-50",
         label: "Low Stock",
       };
-    return { color: "text-green-100", bg: "bg-green-900", label: "In Stock" };
+    }
+
+    return {
+      color: "text-green-100",
+      bg: "bg-green-900",
+      label: "In Stock",
+    };
+  };
+
+  const handleSort = (
+    field:
+      | "productName"
+      | "basePrice"
+      | "minPrice"
+      | "maxPrice"
+      | "quantity"
+      | "updatedAt",
+  ) => {
+    // kui klikitakse sama veeru peal, vaheta suunda
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      // uue veeru puhul alusta ascending sortiga
+      setSortField(field);
+      setSortDirection("asc");
+    }
   };
 
   if (loading) {
@@ -463,188 +564,269 @@ export default function Inventory() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-        <div className="rounded-lg bg-card p-6 shadow-sm border-1 border-[color-mix(in oklab, var(--ring) 50%, transparent)]">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Package className="w-8 h-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-100">
-                Inventory Management
-              </h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={() => setShowCreateCategoryModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-black rounded-lg hover:bg-blue-200 transition font-medium"
-              >
-                <ListPlus className="w-4 h-4" />
-                <span className="flex">New Category</span>
-              </Button>
-              <Button
-                onClick={() => setShowCreateProductModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="flex">New Product</span>
-              </Button>
-              <div className="text-sm text-gray-400">
-                Total Items: {inventory.length}
-              </div>
-            </div>
+      <div className="rounded-lg bg-card p-6 shadow-sm border-1 border-[color-mix(in oklab, var(--ring) 50%, transparent)]">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Package className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-100">
+              Inventory Management
+            </h1>
           </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-950 border border-red-800 rounded-lg flex items-center gap-2 text-red-50">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setShowCreateCategoryModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-black rounded-lg hover:bg-blue-200 transition font-medium">
+              <ListPlus className="w-4 h-4" />
+              <span className="flex">New Category</span>
+            </Button>
+            <Button
+              onClick={() => setShowCreateProductModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+              <Plus className="w-4 h-4" />
+              <span className="flex">New Product</span>
+            </Button>
+            <div className="text-sm text-gray-400">
+              Total Items: {inventory.length}
             </div>
-          )}
-
-          <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 w-5 h-5" />
-            <Input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-400">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">
-                    Product
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">
-                    Current Price
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">
-                    Min Price
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">
-                    Max Price
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-300">
-                    Quantity
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-300">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">
-                    Last Updated
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-300">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInventory.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-400">
-                      No inventory items found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInventory.map((item) => {
-                    const status = getStockStatus(item.quantity);
-                    return (
-                      <tr
-                        key={item.id}
-                        className="border-b border-gray-400 hover:bg-gray-800"
-                      >
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-gray-300">
-                            {item.productName}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            ID: {item.productId}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="text-lg font-semibold text-gray-300">
-                            {item.basePrice.toFixed(2)}€
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="text-lg text-gray-300">
-                            {isNaN(item.minPrice) ? "--" : item.minPrice.toFixed(2)}€
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="text-lg text-gray-300">
-                            {isNaN(item.maxPrice) ? "--" : item.maxPrice.toFixed(2)}€
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="text-lg font-semibold text-gray-300">
-                            {item.quantity.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}
-                          >
-                            {status.label}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray400">
-                          {new Date(item.updatedAt).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex justify-center gap-2 flex-wrap">
-                            <Button
-                              onClick={() => openAddModal(item)}
-                              className="p-2 text-green-100 bg-green-700 hover:bg-green-800 rounded-lg transition"
-                              title="Add Stock"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => openRemoveModal(item)}
-                              className="p-2 text-red-100 bg-red-700 hover:bg-red-800 rounded-lg transition"
-                              title="Remove Stock"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => openAdjustModal(item)}
-                              className="p-2 text-blue-100 bg-blue-700 hover:bg-blue-800 rounded-lg transition"
-                              title="Adjust Stock"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => openHistoryModal(item)}
-                              className="p-2 text-gray-400 bg-gray-700 hover:bg-gray-800 rounded-lg transition"
-                              title="View History"
-                            >
-                              <History className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => openDeleteModal(item)}
-                              className="p-2 text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition"
-                              title="Delete Product"
-                            >
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
           </div>
         </div>
 
+        {error && (
+          <div className="mb-4 p-4 bg-red-950 border border-red-800 rounded-lg flex items-center gap-2 text-red-50">
+            <AlertCircle className="w-5 h-5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 w-5 h-5" />
+          <Input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-400">
+                <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("productName")}
+                    className="flex items-center gap-1 hover:text-white">
+                    Product
+                    <span className="text-xs text-gray-400">
+                      {sortField === "productName"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("basePrice")}
+                    className="flex items-center gap-1 hover:text-white">
+                    Current Price
+                    <span className="text-xs text-gray-400">
+                      {sortField === "basePrice"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("minPrice")}
+                    className="flex items-center gap-1 hover:text-white">
+                    Min Price
+                    <span className="text-xs text-gray-400">
+                      {sortField === "minPrice"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("maxPrice")}
+                    className="flex items-center gap-1 hover:text-white">
+                    Max Price
+                    <span className="text-xs text-gray-400">
+                      {sortField === "maxPrice"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-center py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("quantity")}
+                    className="inline-flex items-center gap-1 hover:text-white">
+                    Quantity
+                    <span className="text-xs text-gray-400">
+                      {sortField === "quantity"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-center py-3 px-4 font-semibold text-gray-300">
+                  Status
+                </th>
+
+                <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("updatedAt")}
+                    className="flex items-center gap-1 hover:text-white">
+                    Last Updated
+                    <span className="text-xs text-gray-400">
+                      {sortField === "updatedAt"
+                        ? sortDirection === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "↕"}
+                    </span>
+                  </button>
+                </th>
+
+                <th className="text-center py-3 px-4 font-semibold text-gray-300">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedInventory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-gray-400">
+                    No inventory items found
+                  </td>
+                </tr>
+              ) : (
+                sortedInventory.map((item) => {
+                  const status = getStockStatus(item.quantity);
+                  return (
+                    <tr
+                      key={item.id}
+                      className="border-b border-gray-400 hover:bg-gray-800">
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-gray-300">
+                          {item.productName}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          ID: {item.productId}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="text-lg font-semibold text-gray-300">
+                          {/* base price can be null, so show fallback instead of crashing */}
+                          {typeof item.basePrice === "number"
+                            ? `${item.basePrice.toFixed(2)}€`
+                            : "--"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="text-lg text-gray-300">
+                          {/* isNaN(null) is false, so use a real type check here */}
+                          {typeof item.minPrice === "number"
+                            ? `${item.minPrice.toFixed(2)}€`
+                            : "--"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="text-lg text-gray-300">
+                          {/* same null-safe handling for max price */}
+                          {typeof item.maxPrice === "number"
+                            ? `${item.maxPrice.toFixed(2)}€`
+                            : "--"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="text-lg font-semibold text-gray-300">
+                          {/* quantity can also be null in some rows */}
+                          {typeof item.quantity === "number"
+                            ? item.quantity.toFixed(2)
+                            : "--"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-400">
+                        {new Date(item.updatedAt).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex justify-center gap-2 flex-wrap">
+                          <Button
+                            onClick={() => openAddModal(item)}
+                            className="p-2 text-green-100 bg-green-700 hover:bg-green-800 rounded-lg transition"
+                            title="Add Stock">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => openRemoveModal(item)}
+                            className="p-2 text-red-100 bg-red-700 hover:bg-red-800 rounded-lg transition"
+                            title="Remove Stock">
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => openAdjustModal(item)}
+                            className="p-2 text-blue-100 bg-blue-700 hover:bg-blue-800 rounded-lg transition"
+                            title="Adjust Stock">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => openHistoryModal(item)}
+                            className="p-2 text-gray-400 bg-gray-700 hover:bg-gray-800 rounded-lg transition"
+                            title="View History">
+                            <History className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => openDeleteModal(item)}
+                            className="p-2 text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition"
+                            title="Delete Product">
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <Dialog
         open={showCreateProductModal}
-        onOpenChange={setShowCreateProductModal}
-      >
+        onOpenChange={setShowCreateProductModal}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Create New Product</DialogTitle>
@@ -676,8 +858,7 @@ export default function Inventory() {
                 value={productForm.categoryId}
                 onValueChange={(value) =>
                   setProductForm({ ...productForm, categoryId: value })
-                }
-              >
+                }>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
@@ -710,9 +891,12 @@ export default function Inventory() {
                 placeholder="0.00"
                 required
               />
-              {lastChangedPriceField === "currentPrice" && priceValidationError && (
-                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
-              )}
+              {lastChangedPriceField === "currentPrice" &&
+                priceValidationError && (
+                  <p className="text-xs text-red-400 mt-1">
+                    {priceValidationError}
+                  </p>
+                )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -735,7 +919,9 @@ export default function Inventory() {
                 required
               />
               {lastChangedPriceField === "minPrice" && priceValidationError && (
-                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
+                <p className="text-xs text-red-400 mt-1">
+                  {priceValidationError}
+                </p>
               )}
             </div>
             <div>
@@ -759,7 +945,9 @@ export default function Inventory() {
                 required
               />
               {lastChangedPriceField === "maxPrice" && priceValidationError && (
-                <p className="text-xs text-red-400 mt-1">{priceValidationError}</p>
+                <p className="text-xs text-red-400 mt-1">
+                  {priceValidationError}
+                </p>
               )}
             </div>
             <div>
@@ -818,30 +1006,37 @@ export default function Inventory() {
             <Button
               onClick={handleCreateProduct}
               disabled={isFormInvalid}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed"
-            >
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed">
               Create Product
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDeleteProductModal} onOpenChange={setShowDeleteProductModal}>
+      <Dialog
+        open={showDeleteProductModal}
+        onOpenChange={setShowDeleteProductModal}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Delete Product</DialogTitle>
             <DialogDescription>
-              This action will permanently delete the product and its related data.
-              Are you sure you want to continue?
+              This action will permanently delete the product and its related
+              data. Are you sure you want to continue?
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-4">
             <p className="text-sm text-gray-300">
-              Product: <span className="font-semibold">{selectedProduct?.productName}</span>
+              Product:{" "}
+              <span className="font-semibold">
+                {selectedProduct?.productName}
+              </span>
             </p>
             <p className="text-sm text-gray-400 mt-2">
-              ID: <span className="font-mono">{selectedProduct?.productId ?? selectedProduct?.id}</span>
+              ID:{" "}
+              <span className="font-mono">
+                {selectedProduct?.productId ?? selectedProduct?.id}
+              </span>
             </p>
           </div>
 
@@ -851,8 +1046,7 @@ export default function Inventory() {
               onClick={() => {
                 setShowDeleteProductModal(false);
                 setSelectedProduct(null);
-              }}
-            >
+              }}>
               Cancel
             </Button>
             <Button
@@ -860,15 +1054,16 @@ export default function Inventory() {
               onClick={() => {
                 const id = selectedProduct?.productId ?? selectedProduct?.id;
                 if (id) handleDeleteProduct(id);
-              }}
-            >
+              }}>
               Delete
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showCreateCategoryModal} onOpenChange={setShowCreateCategoryModal}>
+      <Dialog
+        open={showCreateCategoryModal}
+        onOpenChange={setShowCreateCategoryModal}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Create New Category</DialogTitle>
@@ -901,8 +1096,7 @@ export default function Inventory() {
                     ...categoryForm,
                     dynamicPricing: value === "enabled",
                   })
-                }
-              >
+                }>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select pricing type" />
                 </SelectTrigger>
@@ -914,11 +1108,8 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleAddCategory}
-              disabled={
-                !categoryForm.name
-              }
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed"
-            >
+              disabled={!categoryForm.name}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-700 disabled:cursor-not-allowed">
               Create Category
             </Button>
           </DialogHeader>
@@ -978,8 +1169,7 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleAddStock}
-              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium"
-            >
+              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium">
               Add Stock
             </Button>
           </div>
@@ -1053,8 +1243,7 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleRemoveStock}
-              className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium"
-            >
+              className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium">
               Remove Stock
             </Button>
           </div>
@@ -1114,8 +1303,7 @@ export default function Inventory() {
             </div>
             <Button
               onClick={handleAdjustStock}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium"
-            >
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium">
               Adjust Stock
             </Button>
           </div>
@@ -1140,8 +1328,7 @@ export default function Inventory() {
           </div>
           <div
             className="max-h-96 overflow-y-auto [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {loadingHistory ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -1156,18 +1343,17 @@ export default function Inventory() {
                 {transactionHistory.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="border border-gray-600 rounded-lg p-4 bg-gray-800"
-                  >
+                    className="border border-gray-600 rounded-lg p-4 bg-gray-800">
                     <div className="flex justify-between items-start mb-2">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${transaction.transactionType === "PURCHASE" ||
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${
+                          transaction.transactionType === "PURCHASE" ||
                           transaction.transactionType === "INITIAL"
-                          ? "bg-green-900 text-green-100"
-                          : transaction.transactionType === "SALE"
-                            ? "bg-red-900 text-red-100"
-                            : "bg-blue-900 text-blue-100"
-                          }`}
-                      >
+                            ? "bg-green-900 text-green-100"
+                            : transaction.transactionType === "SALE"
+                              ? "bg-red-900 text-red-100"
+                              : "bg-blue-900 text-blue-100"
+                        }`}>
                         {transaction.transactionType}
                       </span>
                       <span className="text-xs text-gray-400">
@@ -1178,25 +1364,32 @@ export default function Inventory() {
                       <div>
                         <span className="text-gray-400">Change:</span>
                         <span
-                          className={`ml-1 font-semibold ${Number(transaction.quantityChange) >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                            }`}
-                        >
-                          {Number(transaction.quantityChange) >= 0 ? "+" : ""}
-                          {Number(transaction.quantityChange).toFixed(2)}
+                          className={`ml-1 font-semibold ${
+                            typeof transaction.quantityChange === "number" &&
+                            transaction.quantityChange < 0
+                              ? "text-red-400"
+                              : "text-green-400"
+                          }`}>
+                          {/* avoid converting null into 0, show fallback instead */}
+                          {typeof transaction.quantityChange === "number"
+                            ? `${transaction.quantityChange >= 0 ? "+" : ""}${transaction.quantityChange.toFixed(2)}`
+                            : "--"}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-400">Before:</span>
                         <span className="ml-1 font-semibold text-gray-300">
-                          {Number(transaction.quantityBefore).toFixed(2)}
+                          {typeof transaction.quantityBefore === "number"
+                            ? transaction.quantityBefore.toFixed(2)
+                            : "--"}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-400">After:</span>
                         <span className="ml-1 font-semibold text-gray-300">
-                          {Number(transaction.quantityAfter).toFixed(2)}
+                          {typeof transaction.quantityAfter === "number"
+                            ? transaction.quantityAfter.toFixed(2)
+                            : "--"}
                         </span>
                       </div>
                     </div>
@@ -1212,15 +1405,15 @@ export default function Inventory() {
                     )}
                     {(transaction.createdByName ||
                       transaction.createdByEmail) && (
-                        <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-                          <User className="w-3 h-3" />
-                          <span>
-                            By:{" "}
-                            {transaction.createdByName ||
-                              transaction.createdByEmail}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                        <User className="w-3 h-3" />
+                        <span>
+                          By:{" "}
+                          {transaction.createdByName ||
+                            transaction.createdByEmail}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
