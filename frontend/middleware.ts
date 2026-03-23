@@ -23,45 +23,42 @@ async function fetchUser(req: NextRequest) {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (
-    !["/login", "/dashboard", "/onboarding", "/pos"].some((p) =>
-      pathname.startsWith(p)
-    )
-  ) {
+  if (!pathname.startsWith("/worker")) {
     return NextResponse.next();
   }
 
   const user = await fetchUser(req);
 
-  // /login redirects if authenticated
-  if (pathname.startsWith("/login")) {
+  // /worker/login redirects if authenticated
+  if (pathname.startsWith("/worker/login")) {
     if (user) {
       return NextResponse.redirect(
-        new URL(user.needsOnboarding ? "/onboarding" : "/dashboard", req.url)
+        new URL(user.needsOnboarding ? "/worker/onboarding" : "/worker/dashboard", req.url)
       );
     }
     return NextResponse.next();
   }
 
-  // Protected routes: /dashboard, /onboarding, /pos
+  // Protected routes
   if (!user) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/worker/login", req.url));
   }
 
   if (
     (pathname.startsWith("/dashboard") || pathname.startsWith("/pos")) &&
+    !pathname.startsWith("/worker/onboarding") &&
     user.needsOnboarding
   ) {
-    return NextResponse.redirect(new URL("/onboarding", req.url));
+    return NextResponse.redirect(new URL("/worker/onboarding", req.url));
   }
 
-  if (pathname.startsWith("/onboarding") && user.needsOnboarding === false) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (pathname.startsWith("/worker/onboarding") && user.needsOnboarding === false) {
+    return NextResponse.redirect(new URL("/worker/dashboard", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/login", "/dashboard/:path*", "/onboarding/:path*", "/pos/:path*"],
+  matcher: ["/worker/:path*"],
 };

@@ -36,7 +36,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (user && user.needsOnboarding === false) {
-      router.replace("/dashboard");
+      router.replace("/worker/dashboard");
     }
   }, [user, router]);
 
@@ -80,7 +80,7 @@ export default function OnboardingPage() {
         throw new Error(`Failed (${resp.status}) ${txt || ""}`.trim());
       }
 
-      router.replace("/dashboard");
+      router.replace("/worker/dashboard");
     } catch (e) {
       setError(e?.message ?? "Failed to save");
     } finally {
