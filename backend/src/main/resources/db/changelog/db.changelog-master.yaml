@@ -1110,7 +1110,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: discount_percent
-                  type: FLOAT
+                  type: NUMERIC(5,2)
                   constraints:
                     nullable: false
               - column:
