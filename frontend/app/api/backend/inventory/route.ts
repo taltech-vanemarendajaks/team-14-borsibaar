@@ -6,11 +6,15 @@ export async function GET(request: NextRequest) {
         // Get the categoryId parameter from the request URL
         const { searchParams } = new URL(request.url);
         const categoryId = searchParams.get("categoryId");
+        const organizationId = searchParams.get("organizationId");
 
         // Build the backend URL with optional categoryId parameter
         const url = new URL(`${backendUrl}/api/inventory`);
         if (categoryId) {
-            url.searchParams.append("categoryId", categoryId);
+            url.searchParams.set("categoryId", categoryId);
+        }
+        if (organizationId) {
+            url.searchParams.set("organizationId", organizationId);
         }
 
         const response = await fetch(url.toString(), {
