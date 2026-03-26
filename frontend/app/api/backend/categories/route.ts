@@ -3,7 +3,15 @@ import { backendUrl } from "@/utils/constants";
 
 export async function GET(request: NextRequest) {
     try {
-        const response = await fetch(`${backendUrl}/api/categories`, {
+        const { searchParams } = new URL(request.url);
+        const organizationId = searchParams.get("organizationId");
+
+        const url = new URL(`${backendUrl}/api/categories`);
+        if (organizationId) {
+            url.searchParams.set("organizationId", organizationId);
+        }
+
+        const response = await fetch(url.toString(), {
             method: "GET",
             headers: {
                 Cookie: request.headers.get("cookie") || "",
