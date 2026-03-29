@@ -13,7 +13,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { User, ChartLine, Home, LogOut, Package, ShoppingCart } from "lucide-react";
+import {
+  ChartLine,
+  Gamepad2,
+  Gift,
+  Home,
+  LogOut,
+  Package,
+  ReceiptText,
+  ShoppingCart,
+} from "lucide-react";
 
 // Menu items.
 const items = [
@@ -38,9 +47,19 @@ const items = [
     icon: ChartLine,
   },
   {
-    title: "Worker",
-    url: "/worker",
-    icon: User,
+    title: "Orders",
+    url: "/worker/orders",
+    icon: ReceiptText,
+  },
+  {
+    title: "Promo",
+    url: "/worker/promo",
+    icon: Gift,
+  },
+  {
+    title: "Games",
+    url: "/worker/games",
+    icon: Gamepad2,
   },
 ];
 
