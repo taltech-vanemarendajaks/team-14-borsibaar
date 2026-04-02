@@ -584,7 +584,7 @@ paths:
       tags:
         - order
       summary: Get all orders
-      operationId: getOrders
+      operationId: getAllOrders
       responses:
         200:
           description: Orders fetched successfully
@@ -595,14 +595,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/OrderResponse'
 
-  /orders/{orderId}:
+  /orders/{id}:
     get:
       tags:
         - order
       summary: Get order by ID
       operationId: getOrderById
       parameters:
-        - name: orderId
+        - name: id
           in: path
           required: true
           schema:
@@ -688,7 +688,7 @@ paths:
       tags:
         - promo
       summary: Get all promos
-      operationId: getPromos
+      operationId: getAllPromos
       responses:
         200:
           description: Promos fetched successfully
@@ -699,14 +699,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/PromoResponse'
 
-  /promos/{promoId}:
+  /promos/{id}:
     get:
       tags:
         - promo
       summary: Get promo by ID
       operationId: getPromoById
       parameters:
-        - name: promoId
+        - name: id
           in: path
           required: true
           schema:
@@ -771,7 +771,7 @@ paths:
   /promo-items:
     post:
       tags:
-        - promo-item
+        - promoItem
       summary: Create promo item
       operationId: createPromoItem
       requestBody:
@@ -790,9 +790,9 @@ paths:
 
     get:
       tags:
-        - promo-item
+        - promoItem
       summary: Get all promo items
-      operationId: getPromoItems
+      operationId: getAllPromoItems
       responses:
         200:
           description: Promo items fetched successfully
@@ -803,14 +803,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/PromoItemResponse'
 
-  /promo-items/{promoItemId}:
+  /promo-items/{id}:
     get:
       tags:
-        - promo-item
+        - promoItem
       summary: Get promo item by ID
       operationId: getPromoItemById
       parameters:
-        - name: promoItemId
+        - name: id
           in: path
           required: true
           schema:
@@ -828,7 +828,7 @@ paths:
 
     put:
       tags:
-        - promo-item
+        - promoItem
       summary: Update promo item
       operationId: updatePromoItem
       parameters:
@@ -856,7 +856,7 @@ paths:
 
     delete:
       tags:
-        - promo-item
+        - promoItem
       summary: Delete promo item
       operationId: deletePromoItem
       parameters:
@@ -962,7 +962,6 @@ components:
           nullable: true
         isActive:
           type: boolean
-          nullable: true
 
     UpdatePromoRequest:
       type: object
