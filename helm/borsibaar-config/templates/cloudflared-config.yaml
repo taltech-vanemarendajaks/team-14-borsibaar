@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+data:
+  config.yaml: |
+    tunnel: 1ec27bf3-6f4d-4610-b943-303545a0fd25
+    credentials-file: /etc/cloudflared/credentials.json
+    ingress:
+      - hostname: borsibaar.com
+        service: http://traefik.kube-system.svc.cluster.local:80
+      - service: http_status:404

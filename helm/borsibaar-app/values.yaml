@@ -1,0 +1,10 @@
+db:
+  storageSize: 10Gi
+  pvHostPath: /mnt/host/data/postgres
+
+borsibaarService:
+  image: borsibaar14/borsibaar-service
+  datasourceHost: "jdbc:postgresql://baar-db.default:5432/baar"
+
+borsibaarFrontend:
+  image: borsibaar14/borsibaar-frontend

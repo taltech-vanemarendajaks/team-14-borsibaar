@@ -9,17 +9,18 @@ ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 ENV NEXT_PUBLIC_DEBUG_AUTO_LOGIN=${NEXT_PUBLIC_DEBUG_AUTO_LOGIN}
 
 # Install dependencies
-COPY frontend/package.json frontend/package-lock.json ./
+COPY ./package.json ./package-lock.json ./
 RUN npm ci
 
 # Copy source and build
-COPY frontend/ .
+COPY ./ .
 # Next.js picks NEXT_PUBLIC_* client vars at build time
 RUN npm run build
 
 # Run stage (using Next.js standalone output)
 FROM node:20-alpine AS runner
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 # Copy the minimal standalone build

@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: baar-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: baar-db
+  ports:
+    - protocol: 'TCP'
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: baar-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: baar-db
+  template:
+    metadata:
+      labels:
+        app: baar-db
+    spec:
+      containers:
+        - name: baar-db
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "baar"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shared-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: {{ .Values.db.storageSize }}
+  volumeName: postgres-pv
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+spec:
+  capacity:
+    storage: {{ .Values.db.storageSize }}
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  hostPath:
+    path: {{ .Values.db.pvHostPath }}
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
