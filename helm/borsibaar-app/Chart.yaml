@@ -3,4 +3,4 @@ name: borsibaar-app
 description: Borsibaar application Helm chart
 type: application
 version: 1.0.0
-appVersion: "9"
+appVersion: "10"
