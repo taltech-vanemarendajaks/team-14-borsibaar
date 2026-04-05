@@ -27,8 +27,7 @@ spec:
     spec:
       containers:
         - name: borsibaar-service
-          image: {{ .Values.borsibaarService.image }}
-          tag: "{{ .Chart.AppVersion }}"
+          image: {{ .Values.borsibaarService.image }}:{{ .Chart.AppVersion }}
           env:
             - name: SPRING_DATASOURCE_URL
               value: {{ .Values.borsibaarService.datasourceHost }}

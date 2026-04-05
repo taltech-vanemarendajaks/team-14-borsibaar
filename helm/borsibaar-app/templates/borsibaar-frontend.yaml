@@ -27,8 +27,7 @@ spec:
     spec:
       containers:
         - name: borsibaar-frontend
-          image: {{ .Values.borsibaarFrontend.image }}
-          tag: "{{ .Chart.AppVersion }}"
+          image: {{ .Values.borsibaarFrontend.image }}:{{ .Chart.AppVersion }}
           ports:
             - containerPort: 3000
           env:
