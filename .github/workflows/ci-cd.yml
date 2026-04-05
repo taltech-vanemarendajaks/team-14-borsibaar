@@ -112,6 +112,8 @@ jobs:
             "$SSH_USER@$SERVER_IP" << EOF
           set -e
 
+          export KUBECONFIG=/home/ubuntu/.kube/config
+
           helm upgrade --install borsibaar-app ./borsibaar-app
 
           EOF
