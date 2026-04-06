@@ -8,6 +8,7 @@ type Lang = "et" | "en";
 type View =
   | "menu"
   | "order"
+  | "orderStatus"
   | "login"
   | "account"
   | "smartid"
@@ -26,6 +27,24 @@ type InvDto = {
   unitPrice: number;
   basePrice: number;
   updatedAt: string;
+};
+
+type OrderStatus = "received" | "processing" | "finished";
+
+type SubmittedOrderLine = {
+  id: string;
+  name: string;
+  qty: number;
+  sum: number;
+  unitPrice: number;
+};
+
+type SubmittedOrder = {
+  id: string;
+  createdAt: number;
+  total: number;
+  status: OrderStatus;
+  lines: SubmittedOrderLine[];
 };
 
 const money = (n: number) =>
@@ -248,6 +267,17 @@ const I = {
       />
     </svg>
   ),
+  Check: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...p}>
+      <path
+        d="M6 12.5l4 4 8-9"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
 };
 
 /* ---------------- spinner (tailwind) ---------------- */
@@ -278,37 +308,32 @@ function Spinner({ className = "h-6 w-6" }: { className?: string }) {
   );
 }
 
-type SmartIdStep = 0 | 1 | 2; // 0=input, 1=waiting, 2=confirmed
-type SmartIdReason = "signup" | "checkout"; // signup=konto loomine / login; checkout=vanusekinnitus enne maksmist
+type SmartIdStep = 0 | 1 | 2;
+type SmartIdReason = "signup" | "checkout";
 
 function isAlcoholCategory(categoryName: string) {
   const s = categoryName.toLowerCase().trim();
 
   if (s.includes("alkovaba")) return false;
 
-  // alkoholi kategooriad
   const alcoholCats = [
-    "longer", // Longerod
-    "shot", // Shotid
+    "longer",
+    "shot",
     "alko",
     "alkohol",
     "õlu",
     "siider",
     "kõik",
-    "kokteil", // kui sul kokteilid on alkohoolsed
+    "kokteil",
   ];
 
   return alcoholCats.some((k) => s.includes(k));
 }
-export default function ClientMenuPageClient({
-  tableCode,
-}: {
-  tableCode: string;
-}) {
+
+export default function ClientMenuPageClient() {
   const [lang, setLang] = useState<Lang>("et");
   const [view, setView] = useState<View>("menu");
 
-  // orgId: default 2, saad URL-ist: /c/TEST-1/menu?orgId=2
   const [orgId, setOrgId] = useState<number>(2);
 
   const [cats, setCats] = useState<Category[]>([]);
@@ -318,17 +343,18 @@ export default function ClientMenuPageClient({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // mini cart: productId -> qty
   const [cart, setCart] = useState<Record<string, number>>({});
 
-  // ✅ eralda login ja vanusekinnitus
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // konto olemas / sessioon
-  const [isAgeVerified, setIsAgeVerified] = useState(false); // Smart-ID vanusekinnitus (konto või külaline)
+  const [submittedOrders, setSubmittedOrders] = useState<SubmittedOrder[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  // checkout progression
+  const [openProduct, setOpenProduct] = useState<number | null>(null);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAgeVerified, setIsAgeVerified] = useState(false);
+
   const [checkoutStep, setCheckoutStep] = useState<0 | 1 | 2>(0);
 
-  // Smart-ID flow
   const [smartIdStep, setSmartIdStep] = useState<SmartIdStep>(0);
   const [personalCode, setPersonalCode] = useState("");
   const [smartErr, setSmartErr] = useState<string | null>(null);
@@ -342,7 +368,7 @@ export default function ClientMenuPageClient({
         back: "Tagasi lauale",
 
         menu: "Menüü",
-        order: "Tellimus",
+        order: "Ostukorv",
         login: "Logi sisse",
         logout: "Logi välja",
         account: "Konto",
@@ -365,12 +391,9 @@ export default function ClientMenuPageClient({
 
         empty: "Selles kategoorias pole tooteid.",
         loading: "Laen…",
-        items: "tk",
         emptyCart: "Ostukorv on tühi.",
-        continueShopping: "Jätka menüüga",
         remove: "Eemalda",
 
-        // progress / rewards
         discountTitle: "Soodustus",
         discountActive: "aktiivne",
         discountUnlockPrefix: "Lisa",
@@ -378,7 +401,6 @@ export default function ClientMenuPageClient({
         discountAppliesFrom: "Aktiveerub alates",
         loginToApply: "Logi sisse, et soodustus rakenduks",
 
-        // account/dashboard
         dashTitle: "Sinu vaade",
         dashHint: "DEMO: hiljem asenda päris auth + API-ga.",
         points: "Punktid",
@@ -391,8 +413,7 @@ export default function ClientMenuPageClient({
         openMenu: "Ava menüü",
         openOrder: "Ava tellimus",
 
-        // Smart-ID (vanusekinnitus)
-        smartTitle: "Smart-ID vanusekinnitus",
+        smartTitle: "Vanusekinnitus",
         smartDesc: "(DEMO) Sisesta isikukood ja kinnita Smart-ID äpis.",
         smartCodeLabel: "Isikukood",
         smartCodePh: "nt 39xxxxxxxxx",
@@ -403,7 +424,6 @@ export default function ClientMenuPageClient({
         smartDone: "Kinnitatud ✅",
         smartContinue: "Jätka",
 
-        // Checkout / confirm
         checkoutTitle: "Maksmine",
         checkoutPrep: "Valmistan makse ette…",
         checkoutOpen: "Avan Montonio…",
@@ -414,10 +434,20 @@ export default function ClientMenuPageClient({
         confirmDesc: "(DEMO) Makse kinnitatud. Tellimus on kinnitatud.",
         backToMenu: "Tagasi menüüsse",
 
-        // alcohol gate text
+        orderReceivedTitle: "Tellimus vastu võetud",
+        orderReceivedDesc: "Hakkame seda kohe valmistama.",
+        statusLabel: "Staatus",
+        orderReceivedStep: "Tellimus vastu võetud",
+        orderProcessingStep: "Tellimust valmistatakse",
+        orderFinishedStep: "Tellimus valmis",
+        items: "Tooted",
+        total: "Kokku",
+
         alcoholGateTitle: "Vanusekinnitus vajalik",
         alcoholGateDesc:
-          "Ostukorvis on alkohol. Enne maksmist on vaja Smart-ID vanusekinnitust. Alkohoolita tooteid saab osta ka ilma kontota.",
+          "Ostukorvis on alkohol. Enne maksmist on vaja Smart-ID vanusekinnitust. Alkoholita tooteid saab osta ka ilma kontota.",
+        discountLoginTitle: "Soodustuse saamiseks logi sisse või tee konto",
+        discountLoginDesc: "Püsikliendi boonus aktiveerub kontoga",
       },
       en: {
         title: "Menu",
@@ -425,7 +455,7 @@ export default function ClientMenuPageClient({
         back: "Back to table",
 
         menu: "Menu",
-        order: "Order",
+        order: "Cart",
         login: "Login",
         logout: "Logout",
         account: "Account",
@@ -447,12 +477,9 @@ export default function ClientMenuPageClient({
 
         empty: "No products in this category.",
         loading: "Loading…",
-        items: "items",
         emptyCart: "Your cart is empty.",
-        continueShopping: "Continue shopping",
         remove: "Remove",
 
-        // progress / rewards
         discountTitle: "Discount",
         discountActive: "active",
         discountUnlockPrefix: "Add",
@@ -460,7 +487,6 @@ export default function ClientMenuPageClient({
         discountAppliesFrom: "Applies from",
         loginToApply: "Login to apply discount",
 
-        // account/dashboard
         dashTitle: "Your dashboard",
         dashHint: "DEMO: replace with real auth + API later.",
         points: "Points",
@@ -473,7 +499,6 @@ export default function ClientMenuPageClient({
         openMenu: "Open menu",
         openOrder: "Open order",
 
-        // Smart-ID (age verify)
         smartTitle: "Smart-ID age verification",
         smartDesc: "(DEMO) Enter personal code and confirm in Smart-ID app.",
         smartCodeLabel: "Personal code",
@@ -485,7 +510,6 @@ export default function ClientMenuPageClient({
         smartDone: "Verified ✅",
         smartContinue: "Continue",
 
-        // Checkout / confirm
         checkoutTitle: "Payment",
         checkoutPrep: "Preparing payment…",
         checkoutOpen: "Opening Montonio…",
@@ -496,10 +520,20 @@ export default function ClientMenuPageClient({
         confirmDesc: "(DEMO) Payment confirmed. Order is placed.",
         backToMenu: "Back to menu",
 
-        // alcohol gate text
+        orderReceivedTitle: "Order received",
+        orderReceivedDesc: "We’ll start preparing it shortly.",
+        statusLabel: "Status",
+        orderReceivedStep: "Order received",
+        orderProcessingStep: "Order is being prepared",
+        orderFinishedStep: "Order finished",
+        items: "Items",
+        total: "Total",
+
         alcoholGateTitle: "Age verification required",
         alcoholGateDesc:
           "Your cart contains alcohol. Smart-ID age verification is required before payment. Non-alcohol items can be purchased without an account.",
+        discountLoginTitle: "Login or create an account to unlock discounts",
+        discountLoginDesc: "Member discounts become active with an account",
       },
     } as const;
 
@@ -511,20 +545,21 @@ export default function ClientMenuPageClient({
     [cart],
   );
 
-  // Build product lookup + category map (to detect alcohol in cart)
   const productMetaById = useMemo(() => {
     const map = new Map<string, { p: InvDto; categoryName: string }>();
     for (const [catName, arr] of Object.entries(groups)) {
-      for (const p of arr)
+      for (const p of arr) {
         map.set(String(p.productId), { p, categoryName: catName });
+      }
     }
     return map;
   }, [groups]);
 
   const productById = useMemo(() => {
     const map = new Map<string, InvDto>();
-    for (const v of productMetaById.values())
+    for (const v of productMetaById.values()) {
       map.set(String(v.p.productId), v.p);
+    }
     return map;
   }, [productMetaById]);
 
@@ -574,13 +609,30 @@ export default function ClientMenuPageClient({
     return false;
   }, [cart, productMetaById]);
 
+  const activeOrder = useMemo(() => {
+    return (
+      submittedOrders.find(
+        (o) => o.status === "received" || o.status === "processing",
+      ) ?? null
+    );
+  }, [submittedOrders]);
+
+  const selectedOrder = useMemo(() => {
+    if (!selectedOrderId) return null;
+    return submittedOrders.find((o) => o.id === selectedOrderId) ?? null;
+  }, [submittedOrders, selectedOrderId]);
+
+  const orderStatusOrder = useMemo(() => {
+    if (selectedOrder) return selectedOrder;
+    return submittedOrders[0] ?? null;
+  }, [selectedOrder, submittedOrders]);
+
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const q = sp.get("orgId");
     if (q && !Number.isNaN(Number(q))) setOrgId(Number(q));
   }, []);
 
-  // Reset Smart-ID UI when opening smartid view
   useEffect(() => {
     if (view !== "smartid") return;
     setSmartIdStep(0);
@@ -651,7 +703,6 @@ export default function ClientMenuPageClient({
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
   const visibleCategoryNames = useMemo(() => {
@@ -660,21 +711,17 @@ export default function ClientMenuPageClient({
   }, [cats, groups]);
 
   const visibleItems = useMemo(() => {
-    if (activeCat === "all")
+    if (activeCat === "all") {
       return visibleCategoryNames.flatMap((name) => groups[name] ?? []);
+    }
     return groups[activeCat] ?? [];
   }, [activeCat, groups, visibleCategoryNames]);
 
   const AddPill =
     "inline-flex items-center gap-2 rounded-full " +
-    "border border-black/10 bg-black/5 px-4 py-2 text-xs font-semibold " +
+    "border border-black/10 bg-black/5 px-4 py-2 text-sm font-semibold " +
     "text-black/70 hover:text-black/90 hover:bg-black/10 transition " +
     "dark:border-white/10 dark:bg-white/5 dark:text-white/80 dark:hover:bg-white/10";
-
-  const addToCart = (p: InvDto) => {
-    const id = String(p.productId);
-    setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
-  };
 
   const changeQty = (pid: string, delta: number) => {
     setCart((c) => {
@@ -702,9 +749,34 @@ export default function ClientMenuPageClient({
   const goAccount = () => setView("account");
   const goLogin = () => setView("login");
 
-  // ✅ Checkout gate:
-  // - Kui ostukorvis EI OLE alkoholi -> alati checkout (konto pole nõutud)
-  // - Kui ostukorvis ON alkohol -> nõua vanusekinnitust (Smart-ID) enne maksmist
+  const openSubmittedOrder = (orderId?: string) => {
+    const id = orderId ?? activeOrder?.id;
+    if (!id) return;
+    setSelectedOrderId(id);
+    setView("orderStatus");
+  };
+
+  const createSubmittedOrder = () => {
+    const lines: SubmittedOrderLine[] = cartLines.map((x) => ({
+      id: x.id,
+      name: x.name,
+      qty: x.qty,
+      sum: x.sum,
+      unitPrice: x.unitPrice,
+    }));
+
+    const newOrder: SubmittedOrder = {
+      id: `ORD-${Date.now()}`,
+      createdAt: Date.now(),
+      total: cartTotal,
+      status: "received",
+      lines,
+    };
+
+    setSubmittedOrders((prev) => [newOrder, ...prev]);
+    setSelectedOrderId(newOrder.id);
+  };
+
   const goCheckout = () => {
     if (cartCount === 0) return;
 
@@ -717,17 +789,15 @@ export default function ClientMenuPageClient({
     setView("checkout");
   };
 
-  // ✅ Konto tegemine / login (DEMO):
-  // - Konto loomisel teed Smart-ID -> see kinnitab vanuse ja teeb konto "logged in"
   const startSignupSmartId = () => {
     setSmartReason("signup");
     setView("smartid");
   };
 
-  // Smart-ID: start
   const startSmartId = () => {
     setSmartErr(null);
     const pc = personalCode.replace(/\s/g, "");
+
     if (!/^\d{11}$/.test(pc)) {
       setSmartErr(
         lang === "et"
@@ -739,84 +809,86 @@ export default function ClientMenuPageClient({
 
     setSmartIdStep(1);
 
-    // DEMO: waiting -> confirmed
-    window.setTimeout(() => setSmartIdStep(2), 2200);
+    window.setTimeout(() => {
+      if (smartReason === "signup") {
+        setIsAgeVerified(true);
+        window.localStorage.setItem("demo_age_verified", "1");
+
+        setIsLoggedIn(true);
+        window.localStorage.setItem("demo_logged_in", "1");
+
+        setView("account");
+        return;
+      }
+
+      setSmartIdStep(2);
+    }, 2200);
   };
 
-  // Smart-ID: finish
   const finishSmartId = () => {
     setIsAgeVerified(true);
+    window.localStorage.setItem("demo_age_verified", "1");
 
-    // ✅ ainult konto loomise puhul salvestame püsivalt
-    if (smartReason === "signup") {
-      window.localStorage.setItem("demo_age_verified", "1");
-      setIsLoggedIn(true);
-      window.localStorage.setItem("demo_logged_in", "1");
-      setView("account");
-      return;
-    }
+    setIsLoggedIn(true);
+    window.localStorage.setItem("demo_logged_in", "1");
 
-    // ✅ checkout (külaline) -> ära salvesta, kehtib ainult jooksvas sessioonis
     setView("checkout");
   };
 
-  // Persist demo flags
   useEffect(() => {
     const li = window.localStorage.getItem("demo_logged_in");
     const av = window.localStorage.getItem("demo_age_verified");
 
     if (li === "1") {
       setIsLoggedIn(true);
-      if (av === "1") setIsAgeVerified(true); // ✅ vanusekinnitus ainult kontoga
+      if (av === "1") setIsAgeVerified(true);
     } else {
       setIsLoggedIn(false);
-      setIsAgeVerified(false); // ✅ kui pole kontot, pole ka “kinnitatud”
+      setIsAgeVerified(false);
     }
   }, []);
 
   const demoLogout = () => {
     setIsLoggedIn(false);
-    // NB! vanusekinnitust võid soovi korral ka nullida või mitte.
-    // Kui tahad, et ilma kontota peab iga kord uuesti kinnitama, siis nulli ka ageVerified:
-    // setIsAgeVerified(false); window.localStorage.removeItem("demo_age_verified");
+    setIsAgeVerified(false);
+    setSmartIdStep(0);
+    setPersonalCode("");
+    setSmartErr(null);
+
     window.localStorage.removeItem("demo_logged_in");
+    window.localStorage.removeItem("demo_age_verified");
+
     setView("menu");
   };
 
-  // --- PROGRESS (discount meter) ---
-  const discountThreshold = 20; // EUR
-  const discountPct = 5; // %
+  const discountThreshold = 20;
+  const discountPct = 5;
   const discountProgress = Math.min(cartTotal / discountThreshold, 1);
   const missing = Math.max(discountThreshold - cartTotal, 0);
 
-  // DEMO dashboard numbers (placeholder)
   const demoPoints = 120;
   const demoLevel = "Silver";
   const demoVouchers = 2;
 
-  // Show sticky ONLY on menu+order
   const needsSticky = view === "menu" || view === "order";
 
-  // Reserve space only when sticky exists
   const stickyReserve = needsSticky
     ? "pb-[calc(200px+env(safe-area-inset-bottom))] sm:pb-[calc(140px+env(safe-area-inset-bottom))]"
     : "pb-[calc(24px+env(safe-area-inset-bottom))]";
 
-  // ✅ theme-aware buttons
   const IconBtnBase =
     "inline-flex items-center justify-center rounded-full " +
     "border border-black/10 bg-black/5 text-black/70 hover:text-black/90 transition " +
     "dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:text-white/90";
 
   const PillBase =
-    "inline-flex items-center gap-2 rounded-full " +
-    "border border-black/10 bg-black/5 px-3 py-2 text-xs font-semibold text-black/70 hover:text-black/90 transition " +
+    "inline-flex items-center justify-center gap-2 rounded-full " +
+    "border border-black/10 bg-black/5 px-3 py-2 text-sm font-semibold text-black/70 hover:text-black/90 transition " +
     "dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:text-white/90";
 
   const PrimaryPill =
-    "inline-flex items-center gap-2 rounded-full bg-blue-500/90 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-40 disabled:hover:bg-blue-500/90";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-blue-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition disabled:opacity-40 disabled:hover:bg-blue-500/90";
 
-  /* ---------------- DEMO: Checkout timing (slower) ---------------- */
   useEffect(() => {
     if (view !== "checkout") return;
 
@@ -824,120 +896,71 @@ export default function ClientMenuPageClient({
 
     const t1 = window.setTimeout(() => setCheckoutStep(1), 900);
     const t2 = window.setTimeout(() => setCheckoutStep(2), 1900);
-    const t3 = window.setTimeout(() => setView("confirm"), 3400);
+    const t3 = window.setTimeout(() => {
+      createSubmittedOrder();
+      clearCart();
+      setView("confirm");
+    }, 3400);
 
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [view]);
+  }, [view, cartLines, cartTotal]);
+
+  useEffect(() => {
+    if (view !== "orderStatus" || !orderStatusOrder) return;
+
+    if (orderStatusOrder.status === "received") {
+      const t = window.setTimeout(() => {
+        setSubmittedOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderStatusOrder.id ? { ...o, status: "processing" } : o,
+          ),
+        );
+      }, 2500);
+      return () => window.clearTimeout(t);
+    }
+
+    if (orderStatusOrder.status === "processing") {
+      const t = window.setTimeout(() => {
+        setSubmittedOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderStatusOrder.id ? { ...o, status: "finished" } : o,
+          ),
+        );
+      }, 4000);
+      return () => window.clearTimeout(t);
+    }
+  }, [view, orderStatusOrder]);
 
   return (
     <ClientShell
-      title={t.title}
+      title={view === "menu" ? t.title : ""}
       lang={lang}
       onLangChange={setLang}
       actions={
         <div className={`flex items-center gap-2 ${T.textStrong}`}>
           <ThemeToggle />
 
-          {/* ✅ Account ainult siis kui logged in */}
           {isLoggedIn ? (
             <button onClick={goAccount} className={PillBase} type="button">
-              <I.User className="h-4 w-4" />
+              <I.User className="h-5 w-5" />
               {t.account}
             </button>
           ) : (
             <button onClick={goLogin} className={PillBase} type="button">
-              <I.Login className="h-4 w-4" />
+              <I.Login className="h-5 w-5" />
               {t.login}
             </button>
           )}
         </div>
       }>
-      {/* top info */}
-      <section className={`${panelClass} p-4`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className={`text-sm ${T.muted}`}>
-              {t.table}:{" "}
-              <span className={`font-semibold ${T.textStrong}`}>
-                {tableCode}
-              </span>
-            </div>
-
-            <div
-              className={`mt-2 flex flex-wrap items-center gap-2 text-xs ${T.faint}`}>
-              <span>orgId: {orgId}</span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1">
-                <I.Cart className="h-4 w-4" />
-                {t.cart}: {cartCount}
-              </span>
-              <span>•</span>
-              <span>{money(cartTotal)}</span>
-              {cartHasAlcohol ? (
-                <>
-                  <span>•</span>
-                  <span
-                    className={`inline-flex items-center gap-1 ${
-                      isAgeVerified
-                        ? "text-green-700 dark:text-green-300"
-                        : "text-amber-700 dark:text-amber-300"
-                    }`}>
-                    <I.Shield className="h-4 w-4" />
-                    <span>
-                      {isAgeVerified
-                        ? lang === "et"
-                          ? "Vanus kinnitatud"
-                          : "Age verified"
-                        : lang === "et"
-                          ? "Vajab vanusekinnitust"
-                          : "Needs age verification"}
-                    </span>
-                  </span>
-                </>
-              ) : null}
-            </div>
-
-            <a
-              href={`/c/${encodeURIComponent(tableCode)}`}
-              className={`mt-3 inline-flex text-sm font-semibold ${T.link}`}>
-              ← {t.back}
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ✅ perks gate (only when NOT logged in) */}
-      {!isLoggedIn && (
-        <section className={`${panelClass} mt-4 p-4`}>
-          <div
-            className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
-            {t.perksTitle}
-          </div>
-
-          <div className={`mt-3 ${T.card} p-4`}>
-            <div className={`text-sm font-semibold ${T.text}`}>
-              {t.perksLockedTitle}
-            </div>
-            <div className={`mt-1 text-xs ${T.muted}`}>{t.perksLockedDesc}</div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={goLogin} className={PrimaryPill} type="button">
-                <I.Login className="h-4 w-4" />
-                {t.loginCta}
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* states */}
       {loading && (
-        <div className={`${panelClass} mt-4 p-4 text-sm ${T.muted}`}>
-          {t.loading}
+        <div className="flex flex-col items-center justify-center py-10">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+          <div className="p-4 text-sm">{t.loading}</div>
         </div>
       )}
 
@@ -946,9 +969,9 @@ export default function ClientMenuPageClient({
           <div className="text-sm font-semibold text-red-600 dark:text-red-300">
             Error
           </div>
-          <div className={`mt-2 text-xs ${T.muted} break-all`}>{err}</div>
+          <div className={`mt-2 text-sm ${T.muted} break-all`}>{err}</div>
 
-          <div className={`mt-3 text-xs ${T.faint}`}>
+          <div className={`mt-3 text-sm ${T.faint}`}>
             Kontrolli, et need URL-id töötavad:
             <br />
             <code className={`${T.muted}`}>
@@ -962,9 +985,8 @@ export default function ClientMenuPageClient({
         </div>
       )}
 
-      {/* SMART-ID VIEW (kas konto loomine või makse-eelne vanusekinnitus) */}
       {!loading && !err && view === "smartid" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+        <section className={`p-4 ${stickyReserve}`}>
           <div
             className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
             Smart-ID{" "}
@@ -1017,24 +1039,27 @@ export default function ClientMenuPageClient({
                   </div>
                 )}
 
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
-                      // tagasi loogika
                       if (smartReason === "checkout") setView("order");
                       else setView("login");
                     }}
                     className={PillBase}
                     type="button">
-                    <I.Receipt className="h-4 w-4" />
-                    {smartReason === "checkout" ? t.order : t.login}
+                    <I.Receipt className="h-5 w-5" />
+                    {smartReason === "checkout"
+                      ? t.order
+                      : lang === "et"
+                        ? "Tagasi"
+                        : "Back"}
                   </button>
 
                   <button
                     onClick={startSmartId}
                     className={PrimaryPill}
                     type="button">
-                    <I.Shield className="h-4 w-4" />
+                    <I.Shield className="h-5 w-5" />
                     {t.smartStart}
                   </button>
                 </div>
@@ -1061,7 +1086,6 @@ export default function ClientMenuPageClient({
                 <div className="mt-4">
                   <button
                     onClick={() => {
-                      // katkesta
                       if (smartReason === "checkout") setView("order");
                       else setView("login");
                     }}
@@ -1074,12 +1098,12 @@ export default function ClientMenuPageClient({
             )}
 
             {smartIdStep === 2 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   onClick={finishSmartId}
                   className={PrimaryPill}
                   type="button">
-                  <I.Pay className="h-4 w-4" />
+                  <I.Pay className="h-5 w-5" />
                   {t.smartContinue}
                 </button>
 
@@ -1098,9 +1122,8 @@ export default function ClientMenuPageClient({
         </section>
       )}
 
-      {/* CHECKOUT VIEW (DEMO Monton) */}
       {!loading && !err && view === "checkout" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+        <section className={`p-4 ${stickyReserve}`}>
           <div
             className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
             {t.checkoutTitle}
@@ -1115,11 +1138,11 @@ export default function ClientMenuPageClient({
                   {checkoutStep === 2 && t.checkoutWait}
                 </div>
 
-                <div className={`mt-1 text-xs ${T.muted}`}>
+                <div className={`mt-1 text-sm ${T.muted}`}>
                   {t.checkoutDemoHint}
                 </div>
 
-                <div className={`mt-3 text-xs ${T.faint}`}>
+                <div className={`mt-3 text-sm ${T.faint}`}>
                   {t.cart}: {cartCount} • {money(cartTotal)}
                 </div>
               </div>
@@ -1139,7 +1162,7 @@ export default function ClientMenuPageClient({
 
             <div className="mt-4">
               <button onClick={() => setView("order")} className={PillBase}>
-                <I.Receipt className="h-4 w-4" />
+                <I.Receipt className="h-5 w-5" />
                 {t.order}
               </button>
             </div>
@@ -1147,46 +1170,179 @@ export default function ClientMenuPageClient({
         </section>
       )}
 
-      {/* CONFIRM VIEW */}
-      {!loading && !err && view === "confirm" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+      {!loading && !err && view === "confirm" && selectedOrder && (
+        <section className={`p-4 ${stickyReserve}`}>
           <div
             className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
             {t.confirmTitle}
           </div>
 
-          <div className={`${T.card} mt-3 p-4`}>
-            <div className={`text-sm font-semibold ${T.text}`}>
-              {t.confirmDesc}
+          <div className={`${T.card} mt-3 p-5 text-center`}>
+            <div className="flex justify-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 text-green-500">
+                <I.Check className="h-10 w-10" />
+              </div>
             </div>
 
-            <div className={`mt-2 text-xs ${T.muted}`}>
-              {t.cart}: {cartCount} • {money(cartTotal)}
+            <div className={`mt-4 text-lg font-semibold ${T.text}`}>
+              {t.orderReceivedTitle}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className={`mt-2 text-sm ${T.muted}`}>
+              {t.orderReceivedDesc}
+            </div>
+
+            <div className={`mt-3 text-sm ${T.faint}`}>
+              #{selectedOrder.id} • {money(selectedOrder.total)}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 text-center gap-2">
               <button
-                onClick={() => {
-                  // optional: clear cart after payment
-                  // clearCart();
-                  setView("menu");
-                }}
+                onClick={() => openSubmittedOrder()}
                 className={PrimaryPill}>
-                {t.backToMenu}
+                <I.Receipt className="h-5 w-5" />
+                {t.openOrder}
               </button>
 
-              <button onClick={() => setView("order")} className={PillBase}>
-                <I.Receipt className="h-4 w-4" />
-                {t.openOrder}
+              <button onClick={() => setView("menu")} className={PillBase}>
+                {t.backToMenu}
               </button>
             </div>
           </div>
         </section>
       )}
 
-      {/* ACCOUNT / DASHBOARD (only when logged in) */}
+      {!loading && !err && view === "orderStatus" && orderStatusOrder && (
+        <section className={`p-4 ${stickyReserve}`}>
+          <div
+            className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
+            {t.openOrder}
+          </div>
+
+          <div className={`${T.card} mt-3 p-4`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className={`text-base font-semibold ${T.text}`}>
+                  #{orderStatusOrder.id}
+                </div>
+                <div className={`mt-1 text-sm ${T.muted}`}>
+                  {t.statusLabel}:{" "}
+                  {orderStatusOrder.status === "received"
+                    ? t.orderReceivedStep
+                    : orderStatusOrder.status === "processing"
+                      ? t.orderProcessingStep
+                      : t.orderFinishedStep}
+                </div>
+              </div>
+
+              <div
+                className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${
+                  orderStatusOrder.status === "finished"
+                    ? "bg-green-500/15 text-green-500"
+                    : orderStatusOrder.status === "processing"
+                      ? "bg-amber-500/15 text-amber-400"
+                      : "bg-blue-500/15 text-blue-400"
+                }`}>
+                {orderStatusOrder.status === "received"
+                  ? t.orderReceivedStep
+                  : orderStatusOrder.status === "processing"
+                    ? t.orderProcessingStep
+                    : t.orderFinishedStep}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {[
+                { key: "received", label: t.orderReceivedStep },
+                { key: "processing", label: t.orderProcessingStep },
+                { key: "finished", label: t.orderFinishedStep },
+              ].map((step, index) => {
+                const done =
+                  (orderStatusOrder.status === "received" && index <= 0) ||
+                  (orderStatusOrder.status === "processing" && index <= 1) ||
+                  (orderStatusOrder.status === "finished" && index <= 2);
+
+                const current =
+                  (orderStatusOrder.status === "received" && index === 0) ||
+                  (orderStatusOrder.status === "processing" && index === 1) ||
+                  (orderStatusOrder.status === "finished" && index === 2);
+
+                return (
+                  <div key={step.key} className="flex items-start gap-3">
+                    <div
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        done
+                          ? current && orderStatusOrder.status === "processing"
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-green-500/20 text-green-500"
+                          : `${T.softBg} ${T.faint}`
+                      }`}>
+                      {done ? (
+                        <I.Check className="h-4 w-4" />
+                      ) : (
+                        <div className="h-2 w-2 rounded-full bg-current opacity-60" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className={`text-sm font-semibold ${T.text}`}>
+                        {step.label}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={`${T.card} mt-3 p-4`}>
+            <div className={`text-sm font-semibold ${T.text}`}>{t.items}</div>
+
+            <div className="mt-3 grid gap-2">
+              {orderStatusOrder.lines.map((x) => (
+                <div
+                  key={x.id}
+                  className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={`text-sm font-semibold ${T.text}`}>
+                      {x.name}
+                    </div>
+                    <div className={`mt-1 text-sm ${T.faint}`}>
+                      {x.qty} × {money(x.unitPrice)}
+                    </div>
+                  </div>
+
+                  <div className={`shrink-0 text-sm font-semibold ${T.text}`}>
+                    {money(x.sum)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className={`mt-4 border-t border-black/10 pt-4 dark:border-white/10`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className={`text-sm ${T.muted}`}>{t.total}</div>
+                <div className={`text-base font-semibold ${T.text}`}>
+                  {money(orderStatusOrder.total)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <button
+              onClick={() => setView("menu")}
+              className={PillBase}
+              type="button">
+              {t.backToMenu}
+            </button>
+          </div>
+        </section>
+      )}
+
       {!loading && !err && view === "account" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+        <section className={`p-4 ${stickyReserve}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div
@@ -1204,13 +1360,12 @@ export default function ClientMenuPageClient({
                 {t.openMenu}
               </button>
               <button onClick={demoLogout} className={PillBase}>
-                <I.Logout className="h-4 w-4" />
+                <I.Logout className="h-5 w-5" />
                 {t.logout}
               </button>
             </div>
           </div>
 
-          {/* KPI cards */}
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <div className={`${T.card} p-4`}>
               <div className={`text-xs ${T.faint2}`}>{t.points}</div>
@@ -1244,20 +1399,118 @@ export default function ClientMenuPageClient({
             </div>
           </div>
 
-          {/* Sections */}
           <div className="mt-4 grid gap-3">
             <div className={`${T.card} p-4`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className={`text-sm font-semibold ${T.text}`}>
-                  {t.recentOrders}
-                </div>
-                <button onClick={() => setView("order")} className={PillBase}>
-                  <I.Receipt className="h-4 w-4" />
-                  {t.openOrder}
-                </button>
+              <div className={`text-sm font-semibold ${T.text}`}>
+                {t.recentOrders}
               </div>
-              <div className={`mt-2 text-xs ${T.muted}`}>
-                (TODO) Näita päris tellimuste ajalugu / “repeat order”.
+
+              {activeOrder && (
+                <div
+                  className={`mt-3 rounded-2xl ${T.softBg} ${T.softBorder} p-3`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className={`text-sm font-semibold ${T.text}`}>
+                        #{activeOrder.id}
+                      </div>
+                      <div className={`mt-1 text-xs ${T.muted}`}>
+                        {activeOrder.status === "received"
+                          ? t.orderReceivedStep
+                          : activeOrder.status === "processing"
+                            ? t.orderProcessingStep
+                            : t.orderFinishedStep}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                        activeOrder.status === "finished"
+                          ? "bg-green-500/15 text-green-500"
+                          : activeOrder.status === "processing"
+                            ? "bg-amber-500/15 text-amber-400"
+                            : "bg-blue-500/15 text-blue-400"
+                      }`}>
+                      {activeOrder.status === "received"
+                        ? t.orderReceivedStep
+                        : activeOrder.status === "processing"
+                          ? t.orderProcessingStep
+                          : t.orderFinishedStep}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className={`text-sm ${T.faint}`}>
+                      {money(activeOrder.total)}
+                    </div>
+                    <button
+                      onClick={() => openSubmittedOrder(activeOrder.id)}
+                      className={PillBase}
+                      type="button">
+                      <I.Receipt className="h-5 w-5" />
+                      {t.openOrder}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 grid gap-2">
+                {submittedOrders.length === 0 ? (
+                  <div className={`text-xs ${T.muted}`}>
+                    (TODO) Näita päris tellimuste ajalugu / “repeat order”.
+                  </div>
+                ) : (
+                  submittedOrders
+                    .filter(
+                      (order) => !activeOrder || order.id !== activeOrder.id,
+                    )
+                    .map((order) => (
+                      <button
+                        key={order.id}
+                        onClick={() => openSubmittedOrder(order.id)}
+                        className={`w-full rounded-2xl ${T.softBg} ${T.softBorder} p-3 text-left transition hover:opacity-90`}
+                        type="button">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className={`text-sm font-semibold ${T.text}`}>
+                              #{order.id}
+                            </div>
+                            <div className={`mt-1 text-xs ${T.muted}`}>
+                              {new Date(order.createdAt).toLocaleString(
+                                lang === "et" ? "et-EE" : "en-GB",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <div className={`text-sm font-semibold ${T.text}`}>
+                              {money(order.total)}
+                            </div>
+                            <div
+                              className={`mt-1 text-xs font-semibold ${
+                                order.status === "finished"
+                                  ? "text-green-500"
+                                  : order.status === "processing"
+                                    ? "text-amber-400"
+                                    : "text-blue-400"
+                              }`}>
+                              {order.status === "received"
+                                ? t.orderReceivedStep
+                                : order.status === "processing"
+                                  ? t.orderProcessingStep
+                                  : t.orderFinishedStep}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                )}
               </div>
             </div>
 
@@ -1282,17 +1535,13 @@ export default function ClientMenuPageClient({
         </section>
       )}
 
-      {/* ORDER VIEW */}
       {!loading && !err && view === "order" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+        <section className={`p-4 ${stickyReserve}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div
                 className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
                 {t.order}
-              </div>
-              <div className={`mt-1 text-sm font-semibold ${T.text}`}>
-                {cartCount} {t.items} • {money(cartTotal)}
               </div>
               {cartHasAlcohol && !isAgeVerified ? (
                 <div className={`mt-2 text-xs ${T.muted}`}>
@@ -1305,64 +1554,97 @@ export default function ClientMenuPageClient({
             <div className="flex items-center gap-2 shrink-0">
               {cartCount > 0 && (
                 <button onClick={clearCart} className={PillBase}>
-                  <I.Trash className="h-4 w-4" />
+                  <I.Trash className="h-5 w-5" />
                   {t.clear}
                 </button>
               )}
-              <button onClick={() => setView("menu")} className={PillBase}>
-                {t.continueShopping}
-              </button>
             </div>
           </div>
 
-          {/* Discount progress */}
-          <div className={`mt-4 ${T.card} p-4`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className={`text-xs ${T.faint2}`}>{t.discountTitle}</div>
+          <div className="mt-4 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4">
+            {isLoggedIn ? (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div
+                      className={`flex items-center gap-2 text-sm font-semibold ${T.faint2}`}>
+                      <I.Gift className="h-6 w-6 text-blue-400" />
+                      {t.discountTitle}
+                    </div>
 
-                {cartTotal >= discountThreshold ? (
-                  <div className={`mt-1 text-sm font-semibold ${T.text}`}>
-                    -{discountPct}% {t.discountActive}
-                  </div>
-                ) : (
-                  <div className={`mt-1 text-sm font-semibold ${T.text}`}>
-                    {t.discountUnlockPrefix} {money(missing)}{" "}
-                    {t.discountUnlockSuffix} -{discountPct}%
-                  </div>
-                )}
+                    {cartTotal >= discountThreshold ? (
+                      <div
+                        className={`mt-1 text-sm font-semibold ${T.textStrong}`}>
+                        -{discountPct}% {t.discountActive}
+                      </div>
+                    ) : (
+                      <div
+                        className={`mt-1 text-sm font-semibold ${T.textStrong}`}>
+                        {t.discountUnlockPrefix} {money(missing)}{" "}
+                        {t.discountUnlockSuffix} -{discountPct}%
+                      </div>
+                    )}
 
-                <div className={`mt-1 text-xs ${T.faint}`}>
-                  {t.discountAppliesFrom} {money(discountThreshold)}
+                    <div className={`mt-1 text-xs ${T.faint}`}>
+                      {t.discountAppliesFrom} {money(discountThreshold)}
+                    </div>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold text-blue-200">
+                    {money(cartTotal)} / {money(discountThreshold)}
+                  </span>
+                </div>
+
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                    style={{ width: `${Math.round(discountProgress * 100)}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="min-w-0">
+                  <div
+                    className={`flex items-center gap-2 text-sm font-semibold ${T.faint2}`}>
+                    <I.Gift className="h-6 w-6 text-blue-400" />
+                    {t.discountTitle}
+                  </div>
+
+                  <div className={`mt-1 text-sm font-semibold ${T.textStrong}`}>
+                    {t.discountLoginTitle}
+                  </div>
+
+                  <div className={`mt-1 text-xs ${T.faint}`}>
+                    {t.discountLoginDesc}
+                  </div>
+                </div>
+
+                <div
+                  className={`grid gap-2 ${cartHasAlcohol && !isAgeVerified ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <button
+                    onClick={goLogin}
+                    className={`${PillBase} w-full`}
+                    type="button">
+                    <I.Login className="h-5 w-5" />
+                    {t.login}
+                  </button>
+
+                  {cartHasAlcohol && !isAgeVerified ? (
+                    <button
+                      onClick={() => {
+                        setSmartReason("checkout");
+                        setView("smartid");
+                      }}
+                      className={`${PillBase} w-full`}
+                      type="button">
+                      <I.Shield className="h-5 w-5" />
+                      {t.smartTitle}
+                    </button>
+                  ) : null}
                 </div>
               </div>
-
-              <span
-                className={`shrink-0 rounded-full ${T.softBorder} ${T.softBg} px-3 py-1 text-[11px] font-semibold ${T.muted}`}>
-                {money(cartTotal)} / {money(discountThreshold)}
-              </span>
-            </div>
-
-            <div
-              className={`mt-3 h-2 w-full rounded-full ${T.softBg} overflow-hidden`}>
-              <div
-                className="h-full rounded-full bg-blue-500/80"
-                style={{ width: `${Math.round(discountProgress * 100)}%` }}
-              />
-            </div>
-
-            {/* ✅ Smart-ID ei ole “login kõrval” – ainult alkoholi korral enne maksmist */}
-            {cartHasAlcohol && !isAgeVerified ? (
-              <button
-                onClick={() => {
-                  setSmartReason("checkout");
-                  setView("smartid");
-                }}
-                className={`mt-3 ${PillBase}`}>
-                <I.Shield className="h-4 w-4" />
-                {t.smartTitle}
-              </button>
-            ) : null}
+            )}
           </div>
 
           {cartLines.length === 0 ? (
@@ -1376,22 +1658,12 @@ export default function ClientMenuPageClient({
                       <div className={`font-semibold ${T.text} truncate`}>
                         {x.name}
                       </div>
-                      <div className={`mt-1 text-xs ${T.muted}`}>
-                        {x.qty} × {money(x.unitPrice)}
-                        {isAlcoholCategory(x.categoryName) ? (
-                          <span className="ml-2 inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                            <I.Shield className="h-3.5 w-3.5" />{" "}
-                            {lang === "et" ? "alkohol" : "alcohol"}
-                          </span>
-                        ) : null}
-                      </div>
                     </div>
                     <div className={`shrink-0 text-sm font-semibold ${T.text}`}>
                       {money(x.sum)}
                     </div>
                   </div>
 
-                  {/* compact controls */}
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="inline-flex items-center gap-2">
                       <button
@@ -1429,25 +1701,20 @@ export default function ClientMenuPageClient({
         </section>
       )}
 
-      {/* MENU VIEW */}
       {!loading && !err && view === "menu" && (
         <div className={`mt-4 grid gap-4 ${stickyReserve}`}>
-          {/* categories */}
-          <section className={`${panelClass} p-4`}>
+          <section className={`p-4 pt-0`}>
             <div className="flex items-center justify-between">
               <div
                 className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
                 {t.cats}
-              </div>
-              <div className={`text-xs ${T.faint}`}>
-                {visibleItems.length} {t.items}
               </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => setActiveCat("all")}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
                   activeCat === "all"
                     ? "bg-blue-500/90 text-white"
                     : "border border-black/10 bg-black/5 text-black/60 hover:text-black/85 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:text-white/85"
@@ -1459,7 +1726,7 @@ export default function ClientMenuPageClient({
                 <button
                   key={name}
                   onClick={() => setActiveCat(name)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
                     activeCat === name
                       ? "bg-blue-500/90 text-white"
                       : "border border-black/10 bg-black/5 text-black/60 hover:text-black/85 dark:border-white/10 dark:bg-white/5 dark:text-white/60 dark:hover:text-white/85"
@@ -1470,8 +1737,7 @@ export default function ClientMenuPageClient({
             </div>
           </section>
 
-          {/* products */}
-          <section className={`${panelClass} p-4`}>
+          <section className={`p-4 pt-0`}>
             <div
               className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
               {t.products}
@@ -1484,148 +1750,188 @@ export default function ClientMenuPageClient({
                 {visibleItems
                   .slice()
                   .sort((a, b) => a.productName.localeCompare(b.productName))
-                  .map((p) => (
-                    <div
-                      key={p.productId}
-                      className={`${T.card} px-3 py-3 flex items-center justify-between gap-3`}>
-                      <div className="min-w-0">
-                        <div className={`font-semibold ${T.text}`}>
-                          {p.productName}
-                        </div>
-                        {p.description ? (
-                          <div className={`mt-1 text-xs ${T.faint}`}>
-                            {p.description}
+                  .map((p) => {
+                    return (
+                      <div key={p.productId} className={`${T.card} px-3 py-3`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className={`font-semibold ${T.text}`}>
+                              {p.productName}
+                            </div>
+
+                            {p.description && (
+                              <div className={`mt-1 text-xs ${T.faint}`}>
+                                {p.description}
+                              </div>
+                            )}
                           </div>
-                        ) : null}
-                      </div>
 
-                      <div className="shrink-0 flex items-center gap-3 self-center">
-                        <div
-                          className={`text-sm font-semibold ${T.text} tabular-nums`}>
-                          {money(p.unitPrice)}
+                          <div className="shrink-0 flex items-center gap-3">
+                            <div
+                              className={`text-m font-semibold ${T.text} tabular-nums`}>
+                              {money(p.unitPrice)}
+                            </div>
+
+                            <button
+                              onClick={() =>
+                                setOpenProduct(
+                                  openProduct === p.productId
+                                    ? null
+                                    : p.productId,
+                                )
+                              }
+                              className={
+                                (cart[String(p.productId)] || 0) > 0
+                                  ? "inline-flex items-center gap-2 rounded-full bg-blue-500/90 px-2 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                                  : AddPill
+                              }>
+                              {(cart[String(p.productId)] || 0) > 0 ? (
+                                <I.Check className="h-5 w-5" />
+                              ) : (
+                                <>
+                                  <I.Plus className="h-5 w-5" />
+                                  {t.add}
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
 
-                        <button
-                          onClick={() => addToCart(p)}
-                          className={AddPill}>
-                          <I.Plus className="h-4 w-4" />
-                          {t.add}
-                        </button>
+                        {openProduct === p.productId && (
+                          <div className="mt-3 flex items-center justify-end">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() =>
+                                  changeQty(String(p.productId), -1)
+                                }
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
+                                <I.Minus className="h-5 w-5" />
+                              </button>
+
+                              <span className="min-w-[20px] text-center text-sm font-semibold">
+                                {cart[String(p.productId)] || 0}
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  changeQty(String(p.productId), +1)
+                                }
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
+                                <I.Plus className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </section>
         </div>
       )}
 
-      {/* LOGIN VIEW (konto tegemine / login -> Smart-ID kinnitab konto) */}
       {!loading && !err && view === "login" && (
-        <section className={`${panelClass} mt-4 p-4 ${stickyReserve}`}>
+        <section className={`p-4 ${stickyReserve}`}>
           <div
             className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
             {t.login}
           </div>
 
           <div className={`mt-3 text-sm ${T.muted}`}>
-            (DEMO) Konto loomine / login: kinnitame Smart-ID-ga kohe konto ja
-            vanuse.
+            {lang === "et"
+              ? "(DEMO) Kui sul on konto olemas, logid sisse Smart-ID-ga. Kui kontot veel ei ole, luuakse see sama kinnituse käigus."
+              : "(DEMO) If you already have an account, Smart-ID signs you in. If you do not have one yet, it will be created during the same confirmation."}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button onClick={() => setView("menu")} className={PillBase}>
               {t.menu}
             </button>
 
             <button onClick={startSignupSmartId} className={PrimaryPill}>
-              <I.Shield className="h-4 w-4" />
-              {lang === "et"
-                ? "Tee konto Smart-ID-ga"
-                : "Create account with Smart-ID"}
+              <I.Shield className="h-5 w-5" />
+              {lang === "et" ? "Jätka Smart-ID-ga" : "Continue with Smart-ID"}
             </button>
           </div>
         </section>
       )}
 
-      {/* Sticky bottom checkout bar (ONLY on menu+order) */}
       {needsSticky && (
         <div className="fixed inset-x-0 z-50 bottom-[calc(12px+env(safe-area-inset-bottom))]">
           <div className="mx-auto w-full px-4">
             <div className={`mx-auto w-full ${contentMax}`}>
               <div className="relative">
-                {/* soft glow only */}
                 <div className="pointer-events-none absolute -inset-3 rounded-[28px] bg-blue-500/12 blur-2xl" />
 
                 <div className={`${panelSoft} relative px-3 py-3`}>
-                  {/* ROW 1 */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex items-center gap-2">
-                      <I.Cart className={`h-4 w-4 ${T.muted}`} />
+                      <I.Cart className={`h-6 w-6 ${T.muted}`} />
 
                       {cartCount > 0 ? (
-                        <span className="rounded-full bg-blue-500/25 px-2 py-[2px] text-[11px] font-semibold text-blue-900 dark:text-blue-100">
-                          {cartCount} {t.items}
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/25 text-[16px] font-semibold text-blue-900 dark:text-blue-100">
+                          {cartCount}
                         </span>
                       ) : (
                         <span
-                          className={`rounded-full ${T.softBorder} ${T.softBg} px-2 py-[2px] text-[11px] font-semibold ${T.faint}`}>
+                          className={`flex h-7 w-7 items-center justify-center rounded-full ${T.softBorder} ${T.softBg} text-[13px] font-semibold ${T.faint}`}>
                           0
                         </span>
                       )}
-
-                      <span className={`text-xs ${T.muted} truncate`}>
-                        {t.cart}
-                      </span>
-
-                      {cartHasAlcohol ? (
-                        <span
-                          className={`ml-1 inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[11px] font-semibold ${
-                            isAgeVerified
-                              ? "bg-green-500/15 text-green-800 dark:text-green-200"
-                              : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
-                          }`}>
-                          <I.Shield className="h-3.5 w-3.5" />
-                          {isAgeVerified
-                            ? lang === "et"
-                              ? "kinnitatud"
-                              : "verified"
-                            : lang === "et"
-                              ? "vanus"
-                              : "age"}
-                        </span>
-                      ) : null}
                     </div>
 
-                    <div className={`shrink-0 text-sm font-semibold ${T.text}`}>
+                    <div
+                      className={`shrink-0 text-[16px] font-semibold ${T.text}`}>
                       {money(cartTotal)}
                     </div>
                   </div>
 
-                  {/* ROW 2 */}
-                  <div className="mt-3 grid grid-cols-[44px_1fr_1fr] gap-2">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
-                      onClick={clearCart}
-                      disabled={cartCount === 0}
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${T.softBorder} ${T.softBg} ${T.muted} hover:opacity-90 transition disabled:opacity-35`}
-                      aria-label={t.clear}
-                      title={t.clear}>
-                      <I.Trash className="h-5 w-5" />
-                    </button>
-
-                    <button
-                      onClick={openOrder}
-                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-xs font-semibold ${T.muted} hover:opacity-90 transition`}>
-                      <I.Receipt className="h-4 w-4" />
-                      {t.order}
+                      onClick={view === "order" ? openMenu : openOrder}
+                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}>
+                      {view === "order" ? (
+                        <>
+                          <I.Cart className="h-5 w-5" />
+                          {t.menu}
+                        </>
+                      ) : (
+                        <>
+                          <I.Receipt className="h-5 w-5" />
+                          {t.order}
+                        </>
+                      )}
                     </button>
 
                     <button
                       onClick={goCheckout}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-500/90 px-3 text-xs font-semibold text-white hover:bg-blue-500 transition disabled:opacity-40 disabled:hover:bg-blue-500/90"
-                      disabled={cartCount === 0}>
-                      <I.Pay className="h-4 w-4" />
-                      {t.checkout}
+                      disabled={cartCount === 0}
+                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-white transition disabled:opacity-40 ${
+                        cartHasAlcohol
+                          ? isAgeVerified
+                            ? "bg-green-600 hover:bg-green-500"
+                            : "bg-amber-500 hover:bg-amber-400"
+                          : "bg-blue-500/90 hover:bg-blue-500"
+                      }`}>
+                      {cartHasAlcohol ? (
+                        isAgeVerified ? (
+                          <>
+                            <I.Shield className="h-5 w-5" />
+                            {lang === "et" ? "Maksma" : "Checkout"}
+                          </>
+                        ) : (
+                          <>
+                            <I.Shield className="h-5 w-5" />
+                            {lang === "et" ? "Kinnita vanus" : "Verify age"}
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <I.Pay className="h-5 w-5" />
+                          {lang === "et" ? "Maksmine" : "Checkout"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import QRCode from "qrcode";
 
 import ClientShell, { panelClass, ThemeToggle } from "./ClientShell";
@@ -33,7 +32,6 @@ type Props = {
 
 export default function ClientTablePageClient({ tableCode }: Props) {
   const [lang, setLang] = useState<Lang>("et");
-  const [showQr, setShowQr] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -58,7 +56,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
         shareHint: "Kutsu sõber sama laua tellimusse.",
         copy: "Kopeeri link",
         share: "Jaga",
-        showQr: "Näita QR-i (jagamiseks)",
         copied: "Link kopeeritud ✅",
         shareFail: "Jagamine ei õnnestunud (kopeeri link).",
         qrLoading: "QR laadib…",
@@ -75,7 +72,7 @@ export default function ClientTablePageClient({ tableCode }: Props) {
         shareHint: "Invite a friend to the same table order.",
         copy: "Copy link",
         share: "Share",
-        showQr: "Show QR (for sharing)",
+
         copied: "Link copied ✅",
         shareFail: "Share failed (copy the link).",
         qrLoading: "QR loading…",
@@ -150,7 +147,7 @@ export default function ClientTablePageClient({ tableCode }: Props) {
       onLangChange={setLang}
       toast={toast}
       actions={<ThemeToggle />}>
-      {/* table card */}
+      {/* table card 
       <section className={`${panelClass} p-4`}>
         <div className="text-sm text-black/60 dark:text-white/60">
           {t.youOrderTo}
@@ -160,21 +157,13 @@ export default function ClientTablePageClient({ tableCode }: Props) {
           <div className="text-lg font-semibold tracking-wide text-black/90 dark:text-white/90">
             {tableCode}
           </div>
-
-          {tableUrl ? (
-            <div className="text-xs text-black/45 dark:text-white/40 break-all">
-              {tableUrl}
-            </div>
-          ) : (
-            <div className="text-xs text-black/25 dark:text-white/25">…</div>
-          )}
         </div>
-      </section>
+      </section>*/}
 
       {/* CTA */}
       <a
         href={`/c/${encodeURIComponent(tableCode)}/menu`}
-        className="mt-5 block">
+        className="mt-8 block">
         <span
           className="
             inline-flex w-full items-center justify-center
@@ -224,22 +213,7 @@ export default function ClientTablePageClient({ tableCode }: Props) {
             {t.shareHint}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              onClick={onCopy}
-              className="
-                inline-flex items-center justify-center gap-2
-                rounded-xl border border-black/10 bg-black/[0.03]
-                px-4 py-2.5
-                text-sm font-semibold text-black/85
-                transition hover:bg-black/[0.06]
-                active:scale-[0.99]
-                dark:border-white/[0.10] dark:bg-white/[0.03] dark:text-white/85 dark:hover:bg-white/[0.06]
-              ">
-              <IconCopy className="h-4 w-4 text-black/60 dark:text-white/70" />
-              {t.copy}
-            </button>
-
+          <div className="mt-4 grid grid-cols-1 gap-3">
             <button
               onClick={onShare}
               className="
@@ -257,27 +231,19 @@ export default function ClientTablePageClient({ tableCode }: Props) {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowQr((v) => !v)}
-            className="mt-3 w-full rounded-full px-3 py-2 text-xs font-semibold text-black/60 hover:text-black/80 dark:text-white/60 dark:hover:text-white/80">
-            {t.showQr}
-          </button>
-
-          {showQr && (
-            <div className="mt-3 flex items-center justify-center p-4">
-              {qrDataUrl ? (
-                <img
-                  src={qrDataUrl}
-                  alt="QR"
-                  className="h-40 w-40 rounded-xl bg-white p-2"
-                />
-              ) : (
-                <div className="text-xs text-black/50 dark:text-white/50">
-                  {t.qrLoading}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="mt-8 mb-6 flex items-center justify-center">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="QR"
+                className="h-40 w-40 rounded-xl bg-white"
+              />
+            ) : (
+              <div className="text-xs text-black/50 dark:text-white/50">
+                {t.qrLoading}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
