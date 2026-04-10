@@ -33,6 +33,7 @@ public class AccountDelegateImpl extends AbstractApiDelegateImpl implements Acco
             User user = SecurityUtils.getCurrentUser(false);
 
             CurrentUserDto response = new CurrentUserDto();
+            response.setId(user.getId());
             response.setEmail(user.getEmail());
             response.name(user.getName());
             response.setRole(user.getRole() != null ? user.getRole().getName() : null);
