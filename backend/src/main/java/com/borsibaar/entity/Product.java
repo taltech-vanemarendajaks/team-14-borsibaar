@@ -64,4 +64,7 @@ public class Product {
 
     @OneToMany(mappedBy = "product")
     private Set<PromoItem> promoItems = new HashSet<>();
+
+    @OneToMany(mappedBy = "product")
+    private Set<OrderProduct> orderProducts = new HashSet<>();
 }
