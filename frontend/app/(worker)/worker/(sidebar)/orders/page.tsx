@@ -220,7 +220,7 @@ function OrderCard({
 
               {!order.products?.length && (
                 <div className="text-sm text-gray-400">
-                  Loading products...
+                  No products
                 </div>
               )}
             </div>
