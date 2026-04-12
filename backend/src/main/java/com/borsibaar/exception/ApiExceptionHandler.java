@@ -14,6 +14,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -130,6 +133,7 @@ public class ApiExceptionHandler {
         @ExceptionHandler(Exception.class)
         public ProblemDetail handleOther(Exception exception,
                         HttpServletRequest request) {
+                log.error("Unhandled API exception for {}: {}", request.getRequestURI(), exception.getMessage(), exception);
                 return buildProblemDetail(
                                 HttpStatus.INTERNAL_SERVER_ERROR,
                                 "Server error",

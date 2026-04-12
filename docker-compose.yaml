@@ -37,8 +37,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: frontend
+      dockerfile: Dockerfile
       args:
         # For LOCAL dev compose, the browser talks to your machine, so localhost:8080 is correct
         # If you deploy on a server, change this to http://yourdomain or http://server_ip

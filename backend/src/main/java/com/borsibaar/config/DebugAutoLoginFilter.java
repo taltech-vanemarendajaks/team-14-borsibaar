@@ -76,17 +76,15 @@ public class DebugAutoLoginFilter extends OncePerRequestFilter {
             return;
         }
 
-        // If accessing root path, /api/account, or OAuth endpoints without JWT cookie, auto-login
         String uri = request.getRequestURI();
-        boolean shouldAutoLogin = "/".equals(uri) ||
-                uri.startsWith("/api/account") ||
-                uri.startsWith("/oauth2/authorization");
+        // If debug mode is active and we reach here, we should auto-login regardless of the path.
+        // This makes it easy for developers to test any endpoint directly without hitting the frontend first.
+        boolean shouldAutoLogin = true;
 
         if (shouldAutoLogin) {
             log.info("Debug auto-login triggered for user: {} on path: {}", debugEmail, uri);
 
-            // Get or create debug user (use findByEmailWithRole to eagerly fetch role)
-            User user = userRepository.findByEmailWithRole(debugEmail)
+                User user = userRepository.findByEmailWithRole(debugEmail)
                     .orElseGet(() -> {
                         Role defaultRole = roleRepository.findByName("USER")
                                 .orElseThrow(() -> new IllegalStateException("Default role USER not found"));
@@ -95,6 +93,7 @@ public class DebugAutoLoginFilter extends OncePerRequestFilter {
                                 .email(debugEmail)
                                 .name(debugName)
                                 .role(defaultRole)
+                                .organizationId(2L) // Assign to seeded organization TalTech ITÜK
                                 .build();
 
                         return userRepository.save(newUser);

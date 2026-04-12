@@ -8,6 +8,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -26,6 +28,19 @@ public class Order {
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
+    @Column(name = "assigned_worker_id")
+    private UUID assignedWorkerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_worker_id", insertable = false, updatable = false)
+    private User assignedWorker;
+
+    @Column(name = "desk")
+    private String desk;
+
+    @Column(name = "client_name")
+    private String clientName;
+
     @Column(name = "session_id", nullable = false)
     private String sessionId;
 
@@ -35,6 +50,9 @@ public class Order {
 
     @Column(name = "total", nullable = false, precision = 19, scale = 4)
     private BigDecimal total;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<OrderProduct> products = new HashSet<>();
 
     @CreationTimestamp
     private Instant createdAt;
