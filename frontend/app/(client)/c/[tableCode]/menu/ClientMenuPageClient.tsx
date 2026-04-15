@@ -360,6 +360,9 @@ export default function ClientMenuPageClient() {
   const [smartErr, setSmartErr] = useState<string | null>(null);
   const [smartReason, setSmartReason] = useState<SmartIdReason>("checkout");
 
+  const [createAccountWithSmartId, setCreateAccountWithSmartId] =
+    useState(false);
+
   const t = useMemo(() => {
     const dict = {
       et: {
@@ -448,6 +451,10 @@ export default function ClientMenuPageClient() {
           "Ostukorvis on alkohol. Enne maksmist on vaja Smart-ID vanusekinnitust. Alkoholita tooteid saab osta ka ilma kontota.",
         discountLoginTitle: "Soodustuse saamiseks logi sisse või tee konto",
         discountLoginDesc: "Püsikliendi boonus aktiveerub kontoga",
+        smartVerifiedDesc:
+          "Vanusekinnitus on tehtud. Võid nüüd maksmisega jätkata.",
+        smartVerifiedSignupDesc:
+          "Kinnitus on tehtud. Konto on loodud ja saad jätkata.",
       },
       en: {
         title: "Menu",
@@ -534,6 +541,10 @@ export default function ClientMenuPageClient() {
           "Your cart contains alcohol. Smart-ID age verification is required before payment. Non-alcohol items can be purchased without an account.",
         discountLoginTitle: "Login or create an account to unlock discounts",
         discountLoginDesc: "Member discounts become active with an account",
+        smartVerifiedDesc:
+          "Age verification is complete. You can now continue to checkout.",
+        smartVerifiedSignupDesc:
+          "Verification is complete. Your account has been created and you can continue.",
       },
     } as const;
 
@@ -728,8 +739,16 @@ export default function ClientMenuPageClient() {
       const next = { ...c };
       const cur = next[pid] || 0;
       const v = cur + delta;
-      if (v <= 0) delete next[pid];
-      else next[pid] = v;
+
+      if (v <= 0) {
+        delete next[pid];
+        if (openProduct === Number(pid)) {
+          setOpenProduct(null);
+        }
+      } else {
+        next[pid] = v;
+      }
+
       return next;
     });
   };
@@ -745,7 +764,10 @@ export default function ClientMenuPageClient() {
   const clearCart = () => setCart({});
 
   const openOrder = () => setView("order");
-  const openMenu = () => setView("menu");
+  const openMenu = () => {
+    setOpenProduct(null);
+    setView("menu");
+  };
   const goAccount = () => setView("account");
   const goLogin = () => setView("login");
 
@@ -1009,9 +1031,13 @@ export default function ClientMenuPageClient() {
                 </div>
 
                 <div className={`mt-1 text-xs ${T.muted}`}>
-                  {smartReason === "checkout" && cartHasAlcohol
-                    ? t.alcoholGateDesc
-                    : t.smartDesc}
+                  {smartIdStep === 2
+                    ? smartReason === "signup" || createAccountWithSmartId
+                      ? t.smartVerifiedSignupDesc
+                      : t.smartVerifiedDesc
+                    : smartReason === "checkout" && cartHasAlcohol
+                      ? t.alcoholGateDesc
+                      : t.smartDesc}
                 </div>
               </div>
 
@@ -1033,13 +1059,30 @@ export default function ClientMenuPageClient() {
                   className={`h-11 w-full rounded-xl px-3 text-sm outline-none ${T.softBorder} ${T.softBg} ${T.textStrong}`}
                 />
 
+                <label className="mt-2 flex items-start gap-3 rounded-2xl border border-black/10 bg-black/5 p-3 text-sm dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type="checkbox"
+                    checked={createAccountWithSmartId}
+                    onChange={(e) =>
+                      setCreateAccountWithSmartId(e.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-black/20 text-blue-500 focus:ring-blue-500 dark:border-white/20"
+                  />
+
+                  <span className="leading-5 text-black/75 dark:text-white/75">
+                    {lang === "et"
+                      ? "Loo mulle konto sama kinnitusega"
+                      : "Create an account with the same verification"}
+                  </span>
+                </label>
+
                 {smartErr && (
                   <div className="text-xs font-semibold text-red-600 dark:text-red-300">
                     {smartErr}
                   </div>
                 )}
 
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button
                     onClick={() => {
                       if (smartReason === "checkout") setView("order");
@@ -1057,10 +1100,14 @@ export default function ClientMenuPageClient() {
 
                   <button
                     onClick={startSmartId}
-                    className={PrimaryPill}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition duration-150 hover:bg-blue-600 active:scale-[0.98] active:bg-blue-700 disabled:opacity-40"
                     type="button">
                     <I.Shield className="h-5 w-5" />
-                    {t.smartStart}
+                    <span>
+                      {lang === "et"
+                        ? "Jätka Smart-ID-ga"
+                        : "Continue with Smart-ID"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1100,14 +1147,6 @@ export default function ClientMenuPageClient() {
             {smartIdStep === 2 && (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
-                  onClick={finishSmartId}
-                  className={PrimaryPill}
-                  type="button">
-                  <I.Pay className="h-5 w-5" />
-                  {t.smartContinue}
-                </button>
-
-                <button
                   onClick={() => {
                     if (smartReason === "checkout") setView("order");
                     else setView("menu");
@@ -1115,6 +1154,14 @@ export default function ClientMenuPageClient() {
                   className={PillBase}
                   type="button">
                   {t.menu}
+                </button>
+
+                <button
+                  onClick={finishSmartId}
+                  className={PrimaryPill}
+                  type="button">
+                  <I.Pay className="h-5 w-5" />
+                  {t.smartContinue}
                 </button>
               </div>
             )}
@@ -1198,14 +1245,19 @@ export default function ClientMenuPageClient() {
 
             <div className="mt-5 grid grid-cols-2 text-center gap-2">
               <button
+                onClick={() => {
+                  setOpenProduct(null);
+                  setView("menu");
+                }}
+                className={PillBase}>
+                {t.backToMenu}
+              </button>
+
+              <button
                 onClick={() => openSubmittedOrder()}
                 className={PrimaryPill}>
                 <I.Receipt className="h-5 w-5" />
                 {t.openOrder}
-              </button>
-
-              <button onClick={() => setView("menu")} className={PillBase}>
-                {t.backToMenu}
               </button>
             </div>
           </div>
@@ -1285,7 +1337,7 @@ export default function ClientMenuPageClient() {
                     </div>
 
                     <div className="min-w-0">
-                      <div className={`text-sm font-semibold ${T.text}`}>
+                      <div className={`mt-0.5 text-md font-semibold ${T.text}`}>
                         {step.label}
                       </div>
                     </div>
@@ -1377,15 +1429,17 @@ export default function ClientMenuPageClient() {
               </div>
             </div>
 
-            <div className={`${T.card} p-4`}>
-              <div className={`flex items-center gap-2 text-xs ${T.faint2}`}>
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:ring-blue-500/10">
+              <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-200">
                 <I.Gift className="h-4 w-4" />
                 {t.perks}
               </div>
-              <div className={`mt-2 text-sm font-semibold ${T.text}`}>
+
+              <div className="mt-2 text-sm font-semibold text-blue-950 dark:text-blue-100">
                 -{discountPct}% {t.discountActive}
               </div>
-              <div className={`mt-1 text-xs ${T.faint}`}>
+
+              <div className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">
                 {t.discountAppliesFrom} {money(discountThreshold)}
               </div>
             </div>
@@ -1549,15 +1603,6 @@ export default function ClientMenuPageClient() {
                   {t.alcoholGateDesc}
                 </div>
               ) : null}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {cartCount > 0 && (
-                <button onClick={clearCart} className={PillBase}>
-                  <I.Trash className="h-5 w-5" />
-                  {t.clear}
-                </button>
-              )}
             </div>
           </div>
 
@@ -1773,13 +1818,21 @@ export default function ClientMenuPageClient() {
                             </div>
 
                             <button
-                              onClick={() =>
-                                setOpenProduct(
-                                  openProduct === p.productId
-                                    ? null
-                                    : p.productId,
-                                )
-                              }
+                              onClick={() => {
+                                const pid = String(p.productId);
+                                const currentQty = cart[pid] || 0;
+
+                                if (currentQty === 0) {
+                                  changeQty(pid, +1);
+                                  setOpenProduct(p.productId);
+                                } else {
+                                  setOpenProduct(
+                                    openProduct === p.productId
+                                      ? null
+                                      : p.productId,
+                                  );
+                                }
+                              }}
                               className={
                                 (cart[String(p.productId)] || 0) > 0
                                   ? "inline-flex items-center gap-2 rounded-full bg-blue-500/90 px-2 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
@@ -1804,11 +1857,15 @@ export default function ClientMenuPageClient() {
                                 onClick={() =>
                                   changeQty(String(p.productId), -1)
                                 }
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
+                                className="flex h-11 w-11 items-center justify-center rounded-full 
+  bg-black/10 dark:bg-white/10 
+  transition duration-150 select-none touch-manipulation
+  hover:bg-black/15 dark:hover:bg-white/15
+  active:scale-95 active:bg-black/30 dark:active:bg-white/25">
                                 <I.Minus className="h-5 w-5" />
                               </button>
 
-                              <span className="min-w-[20px] text-center text-sm font-semibold">
+                              <span className="min-w-[20px] text-center text-md font-semibold">
                                 {cart[String(p.productId)] || 0}
                               </span>
 
@@ -1816,7 +1873,11 @@ export default function ClientMenuPageClient() {
                                 onClick={() =>
                                   changeQty(String(p.productId), +1)
                                 }
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
+                                className="flex h-11 w-11 items-center justify-center rounded-full 
+  bg-black/10 dark:bg-white/10 
+  transition duration-150 select-none touch-manipulation
+  hover:bg-black/15 dark:hover:bg-white/15
+  active:scale-95 active:bg-black/30 dark:active:bg-white/25">
                                 <I.Plus className="h-5 w-5" />
                               </button>
                             </div>
@@ -1865,12 +1926,12 @@ export default function ClientMenuPageClient() {
                 <div className="pointer-events-none absolute -inset-3 rounded-[28px] bg-blue-500/12 blur-2xl" />
 
                 <div className={`${panelSoft} relative px-3 py-3`}>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="min-w-0 flex items-center gap-2">
                       <I.Cart className={`h-6 w-6 ${T.muted}`} />
 
                       {cartCount > 0 ? (
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/25 text-[16px] font-semibold text-blue-900 dark:text-blue-100">
+                        <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500/25 text-[16px] font-semibold leading-none tabular-nums text-blue-900 dark:text-blue-100 relative [top:-0.5px]">
                           {cartCount}
                         </span>
                       ) : (
@@ -1887,7 +1948,16 @@ export default function ClientMenuPageClient() {
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  {activeOrder && (
+                    <button
+                      onClick={() => openSubmittedOrder(activeOrder.id)}
+                      className={`mb-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}>
+                      <I.Receipt className="h-5 w-5" />
+                      {lang === "et" ? "Aktiivne tellimus" : "Active order"}
+                    </button>
+                  )}
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     <button
                       onClick={view === "order" ? openMenu : openOrder}
                       className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}>
