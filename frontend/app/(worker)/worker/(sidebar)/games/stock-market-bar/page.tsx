@@ -328,13 +328,12 @@ export default function ClientProductsByCategory() {
           <section
             className={`${panelClass} p-4 flex flex-col lg:flex-[1_1_0%] min-w-0 min-h-0 overflow-hidden`}>
             <header className="shrink-0 flex flex-col gap-2 text-center justify-between pb-4">
-              <div className="max-h-[130px] w-full flex justify-center">
-                <img
-                  src="/tudengibaarlogo.png"
-                  alt="Tudengibaar"
-                  className="h-full object-contain opacity-95"
-                />
+              <div className="max-h-[130px] w-full flex justify-center items-center">
+                <h1 className="text-7xl md:text-8xl font-light text-white tracking-tight">
+                  Börsibaar
+                </h1>
               </div>
+
               <p className="text-xs font-semibold tracking-wide text-white/55">
                 Live pricing dashboard
               </p>
