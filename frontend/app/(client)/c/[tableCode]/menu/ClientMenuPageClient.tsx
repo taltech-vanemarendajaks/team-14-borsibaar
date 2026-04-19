@@ -12,8 +12,7 @@ type View =
   | "login"
   | "account"
   | "smartid"
-  | "checkout"
-  | "confirm";
+  | "checkout";
 
 type Category = { id: number; name: string; organizationId?: number };
 
@@ -72,8 +71,8 @@ const T = {
 
 // Sticky panel style (theme aware)
 const panelSoft =
-  "rounded-2xl bg-white/85 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] ring-1 ring-black/10 " +
-  "dark:bg-white/[0.06] dark:shadow-[0_20px_60px_rgba(0,0,0,0.65)] dark:ring-white/20";
+  "bg-white/85 backdrop-blur-2xl border-t border-black/10 " +
+  "dark:bg-white/[0.06] dark:border-white/10";
 
 /* ---------- tiny inline icons (no emoji, no deps) ---------- */
 type IconProps = SVGProps<SVGSVGElement> & { title?: string };
@@ -278,6 +277,26 @@ const I = {
       />
     </svg>
   ),
+  Image: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" {...p}>
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M7 13l2.5-3 3.5 4 2-2 2 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
 };
 
 /* ---------------- spinner (tailwind) ---------------- */
@@ -363,6 +382,14 @@ export default function ClientMenuPageClient() {
   const [createAccountWithSmartId, setCreateAccountWithSmartId] =
     useState(false);
 
+  const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<InvDto | null>(null);
+
+  const [seenReadyOrderIds, setSeenReadyOrderIds] = useState<string[]>([]);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
+
+  const [showPickupCode, setShowPickupCode] = useState(false);
+
   const t = useMemo(() => {
     const dict = {
       et: {
@@ -416,7 +443,7 @@ export default function ClientMenuPageClient() {
         openMenu: "Ava menüü",
         openOrder: "Ava tellimus",
 
-        smartTitle: "Vanusekinnitus",
+        smartTitle: "Jätka Smart-ID-ga",
         smartDesc: "(DEMO) Sisesta isikukood ja kinnita Smart-ID äpis.",
         smartCodeLabel: "Isikukood",
         smartCodePh: "nt 39xxxxxxxxx",
@@ -455,6 +482,12 @@ export default function ClientMenuPageClient() {
           "Vanusekinnitus on tehtud. Võid nüüd maksmisega jätkata.",
         smartVerifiedSignupDesc:
           "Kinnitus on tehtud. Konto on loodud ja saad jätkata.",
+        search: "Otsi jooki",
+        searchPh: "Sisesta joogi nimi…",
+        details: "Detailid",
+        close: "Sulge",
+        placeholderTitle: "Pilt puudub",
+        placeholderDesc: "Siia tuleb hiljem joogi pilt.",
       },
       en: {
         title: "Menu",
@@ -545,6 +578,12 @@ export default function ClientMenuPageClient() {
           "Age verification is complete. You can now continue to checkout.",
         smartVerifiedSignupDesc:
           "Verification is complete. Your account has been created and you can continue.",
+        search: "Search drink",
+        searchPh: "Type drink name…",
+        details: "Details",
+        close: "Close",
+        placeholderTitle: "No image yet",
+        placeholderDesc: "Drink image will appear here later.",
       },
     } as const;
 
@@ -582,6 +621,10 @@ export default function ClientMenuPageClient() {
     }
     return sum;
   }, [cart, productById]);
+
+  const selectedQty = selectedProduct
+    ? cart[String(selectedProduct.productId)] || 0
+    : 0;
 
   const cartLines = useMemo(() => {
     const lines = Object.entries(cart)
@@ -621,12 +664,14 @@ export default function ClientMenuPageClient() {
   }, [cart, productMetaById]);
 
   const activeOrder = useMemo(() => {
-    return (
-      submittedOrders.find(
-        (o) => o.status === "received" || o.status === "processing",
-      ) ?? null
-    );
+    return submittedOrders[0] ?? null;
   }, [submittedOrders]);
+
+  const accountReadyOrder = useMemo(() => {
+    if (!activeOrder || activeOrder.status !== "finished") return null;
+    if (seenReadyOrderIds.includes(activeOrder.id)) return null;
+    return activeOrder;
+  }, [activeOrder, seenReadyOrderIds]);
 
   const selectedOrder = useMemo(() => {
     if (!selectedOrderId) return null;
@@ -637,6 +682,24 @@ export default function ClientMenuPageClient() {
     if (selectedOrder) return selectedOrder;
     return submittedOrders[0] ?? null;
   }, [selectedOrder, submittedOrders]);
+
+  const pickupCode = orderStatusOrder
+    ? orderStatusOrder.id.replace("ORD-", "").slice(-4)
+    : "";
+
+  const readyOrder = useMemo(() => {
+    if (!activeOrder || activeOrder.status !== "finished") return null;
+    if (seenReadyOrderIds.includes(activeOrder.id)) return null;
+    return activeOrder;
+  }, [activeOrder, seenReadyOrderIds]);
+
+  const inProgressOrder = useMemo(() => {
+    return (
+      submittedOrders.find(
+        (o) => o.status === "received" || o.status === "processing",
+      ) ?? null
+    );
+  }, [submittedOrders]);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -650,6 +713,25 @@ export default function ClientMenuPageClient() {
     setPersonalCode("");
     setSmartErr(null);
   }, [view]);
+
+  useEffect(() => {
+    if (view !== "orderStatus") {
+      setShowPickupCode(false);
+    }
+  }, [view]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedProduct(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedProduct]);
 
   useEffect(() => {
     let alive = true;
@@ -722,11 +804,21 @@ export default function ClientMenuPageClient() {
   }, [cats, groups]);
 
   const visibleItems = useMemo(() => {
-    if (activeCat === "all") {
-      return visibleCategoryNames.flatMap((name) => groups[name] ?? []);
-    }
-    return groups[activeCat] ?? [];
-  }, [activeCat, groups, visibleCategoryNames]);
+    const q = search.trim().toLowerCase();
+
+    const base =
+      q.length > 0
+        ? visibleCategoryNames.flatMap((name) => groups[name] ?? [])
+        : activeCat === "all"
+          ? visibleCategoryNames.flatMap((name) => groups[name] ?? [])
+          : (groups[activeCat] ?? []);
+
+    if (!q) return base;
+
+    return base.filter((item) =>
+      `${item.productName} ${item.description}`.toLowerCase().includes(q),
+    );
+  }, [activeCat, groups, visibleCategoryNames, search]);
 
   const AddPill =
     "inline-flex items-center gap-2 rounded-full " +
@@ -774,6 +866,15 @@ export default function ClientMenuPageClient() {
   const openSubmittedOrder = (orderId?: string) => {
     const id = orderId ?? activeOrder?.id;
     if (!id) return;
+
+    const order = submittedOrders.find((o) => o.id === id);
+
+    if (order?.status === "finished") {
+      setSeenReadyOrderIds((prev) =>
+        prev.includes(id) ? prev : [...prev, id],
+      );
+    }
+
     setSelectedOrderId(id);
     setView("orderStatus");
   };
@@ -797,6 +898,8 @@ export default function ClientMenuPageClient() {
 
     setSubmittedOrders((prev) => [newOrder, ...prev]);
     setSelectedOrderId(newOrder.id);
+
+    return newOrder.id;
   };
 
   const goCheckout = () => {
@@ -832,18 +935,24 @@ export default function ClientMenuPageClient() {
     setSmartIdStep(1);
 
     window.setTimeout(() => {
+      setIsAgeVerified(true);
+      window.localStorage.setItem("demo_age_verified", "1");
+
+      setIsLoggedIn(true);
+      window.localStorage.setItem("demo_logged_in", "1");
+
       if (smartReason === "signup") {
-        setIsAgeVerified(true);
-        window.localStorage.setItem("demo_age_verified", "1");
-
-        setIsLoggedIn(true);
-        window.localStorage.setItem("demo_logged_in", "1");
-
         setView("account");
         return;
       }
 
-      setSmartIdStep(2);
+      setCheckoutNotice(
+        lang === "et"
+          ? "Konto on loodud ja liigud maksmisele."
+          : "Your account has been created and you are being redirected to payment.",
+      );
+
+      setView("checkout");
     }, 2200);
   };
 
@@ -892,10 +1001,14 @@ export default function ClientMenuPageClient() {
   const demoLevel = "Silver";
   const demoVouchers = 2;
 
-  const needsSticky = view === "menu" || view === "order";
+  const needsSticky =
+    view === "menu" ||
+    view === "order" ||
+    view === "account" ||
+    view === "orderStatus";
 
   const stickyReserve = needsSticky
-    ? "pb-[calc(200px+env(safe-area-inset-bottom))] sm:pb-[calc(140px+env(safe-area-inset-bottom))]"
+    ? "pb-[calc(108px+env(safe-area-inset-bottom))]"
     : "pb-[calc(24px+env(safe-area-inset-bottom))]";
 
   const IconBtnBase =
@@ -911,6 +1024,11 @@ export default function ClientMenuPageClient() {
   const PrimaryPill =
     "inline-flex items-center justify-center gap-2 rounded-full bg-blue-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition disabled:opacity-40 disabled:hover:bg-blue-500/90";
 
+  const startLoginFlow = () => {
+    setSmartReason("signup");
+    setView("smartid");
+  };
+
   useEffect(() => {
     if (view !== "checkout") return;
 
@@ -919,9 +1037,10 @@ export default function ClientMenuPageClient() {
     const t1 = window.setTimeout(() => setCheckoutStep(1), 900);
     const t2 = window.setTimeout(() => setCheckoutStep(2), 1900);
     const t3 = window.setTimeout(() => {
-      createSubmittedOrder();
+      const newOrderId = createSubmittedOrder();
       clearCart();
-      setView("confirm");
+      setSelectedOrderId(newOrderId);
+      setView("orderStatus");
     }, 3400);
 
     return () => {
@@ -962,6 +1081,11 @@ export default function ClientMenuPageClient() {
       title={view === "menu" ? t.title : ""}
       lang={lang}
       onLangChange={setLang}
+      onLogoClick={() => {
+        setSelectedProduct(null);
+        setOpenProduct(null);
+        setView("menu");
+      }}
       actions={
         <div className={`flex items-center gap-2 ${T.textStrong}`}>
           <ThemeToggle />
@@ -972,7 +1096,7 @@ export default function ClientMenuPageClient() {
               {t.account}
             </button>
           ) : (
-            <button onClick={goLogin} className={PillBase} type="button">
+            <button onClick={startLoginFlow} className={PillBase} type="button">
               <I.Login className="h-5 w-5" />
               {t.login}
             </button>
@@ -1024,7 +1148,7 @@ export default function ClientMenuPageClient() {
           <div className={`${T.card} mt-3 p-4`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className={`text-sm font-semibold ${T.text}`}>
+                <div className={`text-md font-semibold ${T.text}`}>
                   {smartIdStep === 0 && t.smartTitle}
                   {smartIdStep === 1 && t.smartWaiting}
                   {smartIdStep === 2 && t.smartDone}
@@ -1048,16 +1172,41 @@ export default function ClientMenuPageClient() {
 
             {smartIdStep === 0 && (
               <div className="mt-4 grid gap-2">
-                <label className={`text-xs font-semibold ${T.faint2}`}>
+                <label className={`text-md font-semibold ${T.faint2}`}>
                   {t.smartCodeLabel}
                 </label>
                 <input
                   value={personalCode}
-                  onChange={(e) => setPersonalCode(e.target.value)}
+                  onChange={(e) => {
+                    const onlyDigits = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 11);
+                    setPersonalCode(onlyDigits);
+                  }}
                   inputMode="numeric"
+                  maxLength={11}
                   placeholder={t.smartCodePh}
                   className={`h-11 w-full rounded-xl px-3 text-sm outline-none ${T.softBorder} ${T.softBg} ${T.textStrong}`}
                 />
+
+                <div
+                  className={`mt-1 text-sm font-semibold transition-colors duration-200 ${
+                    personalCode.length === 11
+                      ? "text-green-500"
+                      : "text-blue-500"
+                  }`}>
+                  {personalCode.length === 0
+                    ? lang === "et"
+                      ? "Sisesta 11 numbrit"
+                      : "Enter 11 digits"
+                    : personalCode.length < 11
+                      ? lang === "et"
+                        ? `${personalCode.length} / 11 • veel ${11 - personalCode.length} numbrit`
+                        : `${personalCode.length} / 11 • ${11 - personalCode.length} digits left`
+                      : lang === "et"
+                        ? "11 / 11 • valmis"
+                        : "11 / 11 • ready"}
+                </div>
 
                 <label className="mt-2 flex items-start gap-3 rounded-2xl border border-black/10 bg-black/5 p-3 text-sm dark:border-white/10 dark:bg-white/5">
                   <input
@@ -1144,12 +1293,11 @@ export default function ClientMenuPageClient() {
               </div>
             )}
 
-            {smartIdStep === 2 && (
+            {smartIdStep === 2 && smartReason === "signup" && (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
-                    if (smartReason === "checkout") setView("order");
-                    else setView("menu");
+                    setView("menu");
                   }}
                   className={PillBase}
                   type="button">
@@ -1189,6 +1337,12 @@ export default function ClientMenuPageClient() {
                   {t.checkoutDemoHint}
                 </div>
 
+                {checkoutNotice && (
+                  <div className={`mt-2 text-xs text-green-500`}>
+                    {checkoutNotice}
+                  </div>
+                )}
+
                 <div className={`mt-3 text-sm ${T.faint}`}>
                   {t.cart}: {cartCount} • {money(cartTotal)}
                 </div>
@@ -1217,53 +1371,6 @@ export default function ClientMenuPageClient() {
         </section>
       )}
 
-      {!loading && !err && view === "confirm" && selectedOrder && (
-        <section className={`p-4 ${stickyReserve}`}>
-          <div
-            className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
-            {t.confirmTitle}
-          </div>
-
-          <div className={`${T.card} mt-3 p-5 text-center`}>
-            <div className="flex justify-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 text-green-500">
-                <I.Check className="h-10 w-10" />
-              </div>
-            </div>
-
-            <div className={`mt-4 text-lg font-semibold ${T.text}`}>
-              {t.orderReceivedTitle}
-            </div>
-
-            <div className={`mt-2 text-sm ${T.muted}`}>
-              {t.orderReceivedDesc}
-            </div>
-
-            <div className={`mt-3 text-sm ${T.faint}`}>
-              #{selectedOrder.id} • {money(selectedOrder.total)}
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 text-center gap-2">
-              <button
-                onClick={() => {
-                  setOpenProduct(null);
-                  setView("menu");
-                }}
-                className={PillBase}>
-                {t.backToMenu}
-              </button>
-
-              <button
-                onClick={() => openSubmittedOrder()}
-                className={PrimaryPill}>
-                <I.Receipt className="h-5 w-5" />
-                {t.openOrder}
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
       {!loading && !err && view === "orderStatus" && orderStatusOrder && (
         <section className={`p-4 ${stickyReserve}`}>
           <div
@@ -1275,7 +1382,7 @@ export default function ClientMenuPageClient() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className={`text-base font-semibold ${T.text}`}>
-                  #{orderStatusOrder.id}
+                  {lang === "et" ? "Sinu tellimus" : "Your order"}
                 </div>
                 <div className={`mt-1 text-sm ${T.muted}`}>
                   {t.statusLabel}:{" "}
@@ -1288,9 +1395,9 @@ export default function ClientMenuPageClient() {
               </div>
 
               <div
-                className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${
+                className={`shrink-0 rounded-full px-4 py-2 text-base font-bold ${
                   orderStatusOrder.status === "finished"
-                    ? "bg-green-500/15 text-green-500"
+                    ? "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 text-white shadow-[0_10px_28px_rgba(16,185,129,0.24)] order-ready-attention"
                     : orderStatusOrder.status === "processing"
                       ? "bg-amber-500/15 text-amber-400"
                       : "bg-blue-500/15 text-blue-400"
@@ -1322,22 +1429,31 @@ export default function ClientMenuPageClient() {
                 return (
                   <div key={step.key} className="flex items-start gap-3">
                     <div
-                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                         done
                           ? current && orderStatusOrder.status === "processing"
                             ? "bg-amber-500/20 text-amber-400"
-                            : "bg-green-500/20 text-green-500"
+                            : step.key === "finished" &&
+                                orderStatusOrder.status === "finished"
+                              ? "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 text-white shadow-[0_8px_24px_rgba(16,185,129,0.22)] order-ready-attention"
+                              : "bg-green-500/20 text-green-500"
                           : `${T.softBg} ${T.faint}`
                       }`}>
                       {done ? (
-                        <I.Check className="h-4 w-4" />
+                        <I.Check className="h-5 w-5" />
                       ) : (
-                        <div className="h-2 w-2 rounded-full bg-current opacity-60" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-current opacity-60" />
                       )}
                     </div>
 
                     <div className="min-w-0">
-                      <div className={`mt-0.5 text-md font-semibold ${T.text}`}>
+                      <div
+                        className={`mt-2 ${
+                          step.key === "finished" &&
+                          orderStatusOrder.status === "finished"
+                            ? "text-base font-bold text-green-400"
+                            : `text-base font-semibold ${T.text}`
+                        }`}>
                         {step.label}
                       </div>
                     </div>
@@ -1345,6 +1461,16 @@ export default function ClientMenuPageClient() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setShowPickupCode(true)}
+              className={`${PillBase} w-full justify-center`}>
+              <I.Receipt className="h-5 w-5" />
+              {lang === "et" ? "Näita baarile" : "Show at bar"}
+            </button>
           </div>
 
           <div className={`${T.card} mt-3 p-4`}>
@@ -1381,15 +1507,6 @@ export default function ClientMenuPageClient() {
               </div>
             </div>
           </div>
-
-          <div className="mt-3">
-            <button
-              onClick={() => setView("menu")}
-              className={PillBase}
-              type="button">
-              {t.backToMenu}
-            </button>
-          </div>
         </section>
       )}
 
@@ -1405,16 +1522,6 @@ export default function ClientMenuPageClient() {
                 {t.dashTitle}
               </div>
               <div className={`mt-1 text-xs ${T.faint}`}>{t.dashHint}</div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setView("menu")} className={PillBase}>
-                {t.openMenu}
-              </button>
-              <button onClick={demoLogout} className={PillBase}>
-                <I.Logout className="h-5 w-5" />
-                {t.logout}
-              </button>
             </div>
           </div>
 
@@ -1460,13 +1567,21 @@ export default function ClientMenuPageClient() {
               </div>
 
               {activeOrder && (
-                <div
-                  className={`mt-3 rounded-2xl ${T.softBg} ${T.softBorder} p-3`}>
+                <button
+                  onClick={() => openSubmittedOrder(activeOrder.id)}
+                  className={`mt-3 w-full rounded-2xl ${T.softBorder} p-3 text-left transition hover:opacity-95 ${
+                    accountReadyOrder
+                      ? "bg-gradient-to-r from-emerald-500/12 via-green-500/10 to-emerald-400/12 order-ready-attention"
+                      : `${T.softBg}`
+                  }`}
+                  type="button">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className={`text-sm font-semibold ${T.text}`}>
-                        #{activeOrder.id}
+                        {lang === "et" ? "Kood" : "Code"}:{" "}
+                        {activeOrder.id.replace("ORD-", "").slice(-4)}
                       </div>
+
                       <div className={`mt-1 text-xs ${T.muted}`}>
                         {activeOrder.status === "received"
                           ? t.orderReceivedStep
@@ -1479,10 +1594,12 @@ export default function ClientMenuPageClient() {
                     <div
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
                         activeOrder.status === "finished"
-                          ? "bg-green-500/15 text-green-500"
+                          ? seenReadyOrderIds.includes(activeOrder.id)
+                            ? `${T.softBg} ${T.faint}`
+                            : "bg-green-500/15 text-green-500"
                           : activeOrder.status === "processing"
                             ? "bg-amber-500/15 text-amber-400"
-                            : "bg-blue-500/15 text-blue-400"
+                            : `${T.softBg} ${T.faint}`
                       }`}>
                       {activeOrder.status === "received"
                         ? t.orderReceivedStep
@@ -1496,15 +1613,27 @@ export default function ClientMenuPageClient() {
                     <div className={`text-sm ${T.faint}`}>
                       {money(activeOrder.total)}
                     </div>
-                    <button
-                      onClick={() => openSubmittedOrder(activeOrder.id)}
-                      className={PillBase}
-                      type="button">
-                      <I.Receipt className="h-5 w-5" />
-                      {t.openOrder}
-                    </button>
+
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${
+                        accountReadyOrder
+                          ? "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 text-white shadow-[0_8px_24px_rgba(16,185,129,0.22)]"
+                          : "text-blue-500"
+                      }`}>
+                      {accountReadyOrder ? (
+                        <>
+                          <I.Check className="h-5 w-5" />
+                          {lang === "et" ? "Tellimus valmis" : "Order ready"}
+                        </>
+                      ) : (
+                        <>
+                          <I.Receipt className="h-5 w-5" />
+                          {lang === "et" ? "Vaata tellimust" : "View order"}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
               )}
 
               <div className="mt-3 grid gap-2">
@@ -1526,7 +1655,8 @@ export default function ClientMenuPageClient() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className={`text-sm font-semibold ${T.text}`}>
-                              #{order.id}
+                              {lang === "et" ? "Kood" : "Code"}:{" "}
+                              {order.id.replace("ORD-", "").slice(-4)}
                             </div>
                             <div className={`mt-1 text-xs ${T.muted}`}>
                               {new Date(order.createdAt).toLocaleString(
@@ -1598,9 +1728,8 @@ export default function ClientMenuPageClient() {
                 {t.order}
               </div>
               {cartHasAlcohol && !isAgeVerified ? (
-                <div className={`mt-2 text-xs ${T.muted}`}>
-                  <span className="font-semibold">{t.alcoholGateTitle}:</span>{" "}
-                  {t.alcoholGateDesc}
+                <div className={`mt-2 text-md ${T.muted}`}>
+                  <span className="font-semibold"></span> {t.alcoholGateDesc}
                 </div>
               ) : null}
             </div>
@@ -1612,30 +1741,30 @@ export default function ClientMenuPageClient() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div
-                      className={`flex items-center gap-2 text-sm font-semibold ${T.faint2}`}>
+                      className={`flex items-center gap-2 text-md font-semibold ${T.faint2}`}>
                       <I.Gift className="h-6 w-6 text-blue-400" />
                       {t.discountTitle}
                     </div>
 
                     {cartTotal >= discountThreshold ? (
                       <div
-                        className={`mt-1 text-sm font-semibold ${T.textStrong}`}>
+                        className={`mt-1 text-md font-semibold ${T.textStrong}`}>
                         -{discountPct}% {t.discountActive}
                       </div>
                     ) : (
                       <div
-                        className={`mt-1 text-sm font-semibold ${T.textStrong}`}>
+                        className={`mt-1 text-md font-semibold ${T.textStrong}`}>
                         {t.discountUnlockPrefix} {money(missing)}{" "}
                         {t.discountUnlockSuffix} -{discountPct}%
                       </div>
                     )}
 
-                    <div className={`mt-1 text-xs ${T.faint}`}>
+                    <div className={`mt-1 text-md ${T.faint}`}>
                       {t.discountAppliesFrom} {money(discountThreshold)}
                     </div>
                   </div>
 
-                  <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold text-blue-200">
+                  <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm font-semibold text-blue-700 dark:text-blue-200">
                     {money(cartTotal)} / {money(discountThreshold)}
                   </span>
                 </div>
@@ -1651,7 +1780,7 @@ export default function ClientMenuPageClient() {
               <div className="flex flex-col gap-3">
                 <div className="min-w-0">
                   <div
-                    className={`flex items-center gap-2 text-sm font-semibold ${T.faint2}`}>
+                    className={`flex items-center gap-2 text-md font-semibold ${T.faint2}`}>
                     <I.Gift className="h-6 w-6 text-blue-400" />
                     {t.discountTitle}
                   </div>
@@ -1665,17 +1794,8 @@ export default function ClientMenuPageClient() {
                   </div>
                 </div>
 
-                <div
-                  className={`grid gap-2 ${cartHasAlcohol && !isAgeVerified ? "grid-cols-2" : "grid-cols-1"}`}>
-                  <button
-                    onClick={goLogin}
-                    className={`${PillBase} w-full`}
-                    type="button">
-                    <I.Login className="h-5 w-5" />
-                    {t.login}
-                  </button>
-
-                  {cartHasAlcohol && !isAgeVerified ? (
+                <div className="grid gap-2 grid-cols-1">
+                  {cartHasAlcohol && !isAgeVerified && (
                     <button
                       onClick={() => {
                         setSmartReason("checkout");
@@ -1686,7 +1806,7 @@ export default function ClientMenuPageClient() {
                       <I.Shield className="h-5 w-5" />
                       {t.smartTitle}
                     </button>
-                  ) : null}
+                  )}
                 </div>
               </div>
             )}
@@ -1748,6 +1868,21 @@ export default function ClientMenuPageClient() {
 
       {!loading && !err && view === "menu" && (
         <div className={`mt-4 grid gap-4 ${stickyReserve}`}>
+          <section className="p-4 pt-0">
+            <div
+              className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
+              {t.search}
+            </div>
+
+            <div className="mt-3">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.searchPh}
+                className={`h-11 w-full rounded-2xl px-4 text-sm outline-none ${T.softBorder} ${T.softBg} ${T.textStrong}`}
+              />
+            </div>
+          </section>
           <section className={`p-4 pt-0`}>
             <div className="flex items-center justify-between">
               <div
@@ -1800,9 +1935,12 @@ export default function ClientMenuPageClient() {
                       <div key={p.productId} className={`${T.card} px-3 py-3`}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className={`font-semibold ${T.text}`}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProduct(p)}
+                              className={`text-left font-semibold ${T.text} hover:underline`}>
                               {p.productName}
-                            </div>
+                            </button>
 
                             {p.description && (
                               <div className={`mt-1 text-xs ${T.faint}`}>
@@ -1850,39 +1988,40 @@ export default function ClientMenuPageClient() {
                           </div>
                         </div>
 
-                        {openProduct === p.productId && (
-                          <div className="mt-3 flex items-center justify-end">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() =>
-                                  changeQty(String(p.productId), -1)
-                                }
-                                className="flex h-11 w-11 items-center justify-center rounded-full 
+                        {openProduct === p.productId &&
+                          (cart[String(p.productId)] || 0) > 0 && (
+                            <div className="mt-3 flex items-center justify-end">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() =>
+                                    changeQty(String(p.productId), -1)
+                                  }
+                                  className="flex h-11 w-11 items-center justify-center rounded-full 
   bg-black/10 dark:bg-white/10 
   transition duration-150 select-none touch-manipulation
   hover:bg-black/15 dark:hover:bg-white/15
   active:scale-95 active:bg-black/30 dark:active:bg-white/25">
-                                <I.Minus className="h-5 w-5" />
-                              </button>
+                                  <I.Minus className="h-5 w-5" />
+                                </button>
 
-                              <span className="min-w-[20px] text-center text-md font-semibold">
-                                {cart[String(p.productId)] || 0}
-                              </span>
+                                <span className="min-w-[20px] text-center text-md font-semibold">
+                                  {cart[String(p.productId)] || 0}
+                                </span>
 
-                              <button
-                                onClick={() =>
-                                  changeQty(String(p.productId), +1)
-                                }
-                                className="flex h-11 w-11 items-center justify-center rounded-full 
+                                <button
+                                  onClick={() =>
+                                    changeQty(String(p.productId), +1)
+                                  }
+                                  className="flex h-11 w-11 items-center justify-center rounded-full 
   bg-black/10 dark:bg-white/10 
   transition duration-150 select-none touch-manipulation
   hover:bg-black/15 dark:hover:bg-white/15
   active:scale-95 active:bg-black/30 dark:active:bg-white/25">
-                                <I.Plus className="h-5 w-5" />
-                              </button>
+                                  <I.Plus className="h-5 w-5" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     );
                   })}
@@ -1918,95 +2057,340 @@ export default function ClientMenuPageClient() {
         </section>
       )}
 
-      {needsSticky && (
-        <div className="fixed inset-x-0 z-50 bottom-[calc(12px+env(safe-area-inset-bottom))]">
-          <div className="mx-auto w-full px-4">
-            <div className={`mx-auto w-full ${contentMax}`}>
-              <div className="relative">
-                <div className="pointer-events-none absolute -inset-3 rounded-[28px] bg-blue-500/12 blur-2xl" />
+      {selectedProduct && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setSelectedProduct(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full ${contentMax} rounded-3xl border border-black/10 bg-white p-4 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#20283a] dark:ring-white/10`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div
+                  className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
+                  {t.details}
+                </div>
+                <div className={`mt-1 text-lg font-semibold ${T.textStrong}`}>
+                  {selectedProduct.productName}
+                </div>
+              </div>
 
-                <div className={`${panelSoft} relative px-3 py-3`}>
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <I.Cart className={`h-6 w-6 ${T.muted}`} />
+              <button
+                type="button"
+                onClick={() => setSelectedProduct(null)}
+                aria-label={t.close}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 text-black/70 transition hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-5 w-5"
+                  aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
 
-                      {cartCount > 0 ? (
-                        <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500/25 text-[16px] font-semibold leading-none tabular-nums text-blue-900 dark:text-blue-100 relative [top:-0.5px]">
-                          {cartCount}
-                        </span>
-                      ) : (
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full ${T.softBorder} ${T.softBg} text-[13px] font-semibold ${T.faint}`}>
-                          0
-                        </span>
-                      )}
-                    </div>
+            <div className="mt-4 overflow-hidden rounded-2xl border border-black/10 bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.04]">
+              <div className="flex aspect-[16/10] items-center justify-center">
+                <div className="flex flex-col items-center justify-center gap-2 px-4 text-center text-black/45 dark:text-white/45">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="h-8 w-8"
+                    aria-hidden="true">
+                    <rect
+                      x="3"
+                      y="5"
+                      width="18"
+                      height="14"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="M7 13l2.5-3 3.5 4 2-2 2 3"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
 
-                    <div
-                      className={`shrink-0 text-[16px] font-semibold ${T.text}`}>
-                      {money(cartTotal)}
-                    </div>
+                  <div className="text-xs">{t.placeholderDesc}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <div>
+                <div className={`text-xs font-semibold ${T.faint2}`}>
+                  {lang === "et" ? "Kirjeldus" : "Description"}
+                </div>
+                <div className={`mt-1 text-sm ${T.muted}`}>
+                  {selectedProduct.description ||
+                    (lang === "et"
+                      ? "Kirjeldus puudub."
+                      : "No description available.")}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-end justify-between gap-3">
+                {/* HIND */}
+                <div className="flex flex-col">
+                  <div className={`text-base font-semibold ${T.textStrong}`}>
+                    {money(
+                      (selectedQty > 0 ? selectedQty : 1) *
+                        selectedProduct.unitPrice,
+                    )}
                   </div>
 
-                  {activeOrder && (
-                    <button
-                      onClick={() => openSubmittedOrder(activeOrder.id)}
-                      className={`mb-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}>
-                      <I.Receipt className="h-5 w-5" />
-                      {lang === "et" ? "Aktiivne tellimus" : "Active order"}
-                    </button>
-                  )}
-
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button
-                      onClick={view === "order" ? openMenu : openOrder}
-                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}>
-                      {view === "order" ? (
-                        <>
-                          <I.Cart className="h-5 w-5" />
-                          {t.menu}
-                        </>
-                      ) : (
-                        <>
-                          <I.Receipt className="h-5 w-5" />
-                          {t.order}
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={goCheckout}
-                      disabled={cartCount === 0}
-                      className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-white transition disabled:opacity-40 ${
-                        cartHasAlcohol
-                          ? isAgeVerified
-                            ? "bg-green-600 hover:bg-green-500"
-                            : "bg-amber-500 hover:bg-amber-400"
-                          : "bg-blue-500/90 hover:bg-blue-500"
-                      }`}>
-                      {cartHasAlcohol ? (
-                        isAgeVerified ? (
-                          <>
-                            <I.Shield className="h-5 w-5" />
-                            {lang === "et" ? "Maksma" : "Checkout"}
-                          </>
-                        ) : (
-                          <>
-                            <I.Shield className="h-5 w-5" />
-                            {lang === "et" ? "Kinnita vanus" : "Verify age"}
-                          </>
-                        )
-                      ) : (
-                        <>
-                          <I.Pay className="h-5 w-5" />
-                          {lang === "et" ? "Maksmine" : "Checkout"}
-                        </>
-                      )}
-                    </button>
+                  <div className={`text-xs ${T.faint}`}>
+                    {money(selectedProduct.unitPrice)} / tk
                   </div>
                 </div>
 
-                <div className="pointer-events-none mx-auto mt-2 h-1 w-10 rounded-full bg-black/10 dark:bg-white/10 sm:hidden" />
+                {/* KOGUS paremal */}
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pid = String(selectedProduct.productId);
+                      changeQty(pid, -1);
+                    }}
+                    className="flex h-11 w-11 items-center justify-center rounded-full
+      bg-black/10 dark:bg-white/10 
+      transition duration-150 select-none touch-manipulation
+      hover:bg-black/15 dark:hover:bg-white/15
+      active:scale-95 active:bg-black/30 dark:active:bg-white/25">
+                    <I.Minus className="h-5 w-5" />
+                  </button>
+
+                  <span
+                    className={`min-w-[24px] text-center text-sm font-semibold ${T.textStrong}`}>
+                    {selectedQty}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pid = String(selectedProduct.productId);
+                      changeQty(pid, 1);
+                    }}
+                    className="flex h-11 w-11 items-center justify-center rounded-full
+      bg-black/10 dark:bg-white/10 
+      transition duration-150 select-none touch-manipulation
+      hover:bg-black/15 dark:hover:bg-white/15
+      active:scale-95 active:bg-black/30 dark:active:bg-white/25">
+                    <I.Plus className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPickupCode && orderStatusOrder && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowPickupCode(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full ${contentMax} rounded-3xl border border-black/10 bg-white p-6 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#20283a] dark:ring-white/10`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div
+                  className={`text-[11px] font-semibold tracking-[0.18em] uppercase ${T.faint2}`}>
+                  {lang === "et" ? "Näita baaris" : "Show at bar"}
+                </div>
+
+                <div className={`mt-2 text-sm ${T.muted}`}>
+                  {lang === "et"
+                    ? "Näita seda koodi baaritöötajale."
+                    : "Show this code to the bartender."}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPickupCode(false)}
+                aria-label={t.close}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 text-black/70 transition hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-5 w-5"
+                  aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center rounded-3xl border border-black/10 bg-black/[0.04] px-6 py-8 dark:border-white/10 dark:bg-white/[0.04]">
+              <div
+                className={`text-4xl font-bold tracking-[0.2em] ${T.textStrong}`}>
+                {pickupCode}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {needsSticky && (
+        <div className="fixed inset-x-0 bottom-0 z-50">
+          <div className={`mx-auto w-full ${contentMax}`}>
+            <div className="pointer-events-none absolute inset-x-0 -top-3 h-10 bg-blue-500/12 blur-2xl" />
+
+            <div className={`${panelSoft} relative`}>
+              <div className="px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+                {view === "account" ? (
+                  <>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setView("menu")}
+                        className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}
+                        type="button">
+                        <I.Cart className="h-5 w-5" />
+                        {t.openMenu}
+                      </button>
+
+                      <button
+                        onClick={demoLogout}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-500/90 px-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+                        type="button">
+                        <I.Logout className="h-5 w-5" />
+                        {t.logout}
+                      </button>
+                    </div>
+                  </>
+                ) : view === "orderStatus" ? (
+                  <>
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setView("menu")}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-500/90 px-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+                        type="button">
+                        <I.Cart className="h-5 w-5" />
+                        {t.backToMenu}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-2">
+                        <I.Cart className={`h-6 w-6 ${T.muted}`} />
+
+                        {cartCount > 0 ? (
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500/25 text-[16px] font-semibold leading-none tabular-nums text-blue-900 dark:text-blue-100 relative [top:-0.5px]">
+                            {cartCount}
+                          </span>
+                        ) : (
+                          <span
+                            className={`flex h-7 w-7 items-center justify-center rounded-full ${T.softBorder} ${T.softBg} text-[13px] font-semibold ${T.faint}`}>
+                            0
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className={`shrink-0 text-[16px] font-semibold ${T.text}`}>
+                        {money(cartTotal)}
+                      </div>
+                    </div>
+
+                    {(inProgressOrder || readyOrder) &&
+                      view !== "order" &&
+                      view !== "account" && (
+                        <button
+                          onClick={() =>
+                            openSubmittedOrder(
+                              (readyOrder ?? inProgressOrder)?.id,
+                            )
+                          }
+                          className={`mb-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold transition ${
+                            readyOrder
+                              ? "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 text-white hover:from-emerald-400 hover:via-green-400 hover:to-emerald-300 shadow-[0_8px_24px_rgba(16,185,129,0.18)] order-ready-attention"
+                              : `${T.softBorder} ${T.softBg} ${T.muted} hover:opacity-90`
+                          }`}
+                          type="button">
+                          {readyOrder ? (
+                            <>
+                              <I.Check className="h-5 w-5" />
+                              {lang === "et"
+                                ? "Tellimus valmis"
+                                : "Order ready"}
+                            </>
+                          ) : (
+                            <>
+                              <I.Receipt className="h-5 w-5" />
+                              {lang === "et"
+                                ? "Aktiivne tellimus"
+                                : "Active order"}
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={view === "order" ? openMenu : openOrder}
+                        className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full ${T.softBorder} ${T.softBg} px-3 text-sm font-semibold ${T.muted} hover:opacity-90 transition`}
+                        type="button">
+                        {view === "order" ? (
+                          <>
+                            <I.Cart className="h-5 w-5" />
+                            {t.menu}
+                          </>
+                        ) : (
+                          <>
+                            <I.Receipt className="h-5 w-5" />
+                            {t.order}
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={goCheckout}
+                        disabled={cartCount === 0}
+                        className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-white transition disabled:opacity-40 ${
+                          cartHasAlcohol && !isAgeVerified
+                            ? "bg-amber-500 hover:bg-amber-400"
+                            : "bg-blue-500/90 hover:bg-blue-500"
+                        }`}
+                        type="button">
+                        {cartHasAlcohol ? (
+                          isAgeVerified ? (
+                            <>
+                              <I.Shield className="h-5 w-5" />
+                              {lang === "et" ? "Maksma" : "Checkout"}
+                            </>
+                          ) : (
+                            <>
+                              <I.Shield className="h-5 w-5" />
+                              {lang === "et" ? "Kinnita vanus" : "Verify age"}
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <I.Pay className="h-5 w-5" />
+                            {lang === "et" ? "Maksmine" : "Checkout"}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
