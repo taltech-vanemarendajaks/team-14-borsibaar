@@ -53,6 +53,18 @@ public class SecurityUtils {
         return user;
     }
 
+    public static User getCurrentUserOrNull() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) return null;
+            Object principal = authentication.getPrincipal();
+            if (!(principal instanceof User)) return null;
+            return (User) principal;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * Checks if the currently authenticated user has the ADMIN role.
      *
