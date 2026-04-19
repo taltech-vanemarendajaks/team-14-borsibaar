@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "organizations")
@@ -18,6 +20,11 @@ public class Organization {
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    @ElementCollection
+    @CollectionTable(name = "organization_auth_emails", joinColumns = @JoinColumn(name = "organization_id"))
+    @Column(name = "email")
+    private List<String> authEmails = new ArrayList<>();
 
     @Column(name = "created_at")
     private Instant createdAt;

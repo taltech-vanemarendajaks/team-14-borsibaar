@@ -32,6 +32,12 @@ paths:
       responses:
         200:
           description: User onboarded
+        400:
+          description: Invalid onboarding request
+        403:
+          description: User does not belong to this organization
+        404:
+          description: Organization not found
   /login/success:
     get:
       tags:
@@ -418,6 +424,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationResponse'
+  /organizations/available:
+    get:
+      tags:
+        - organization
+      summary: Get organizations available for current user
+      operationId: getAvailableOrganizations
+      responses:
+        200:
+          description: Got available organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizationResponse'
   /inventory:
     get:
       tags:
@@ -1323,6 +1344,11 @@ components:
         name:
           type: string
           minLength: 1
+        authEmails:
+          type: array
+          items:
+            type: string
+            format: email
         priceIncreaseStep:
           type: number
           minimum: 0.0

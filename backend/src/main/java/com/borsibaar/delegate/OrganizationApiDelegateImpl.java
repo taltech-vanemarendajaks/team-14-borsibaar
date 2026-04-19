@@ -42,4 +42,9 @@ public class OrganizationApiDelegateImpl extends AbstractApiDelegateImpl impleme
     public ResponseEntity<OrganizationResponseDto> updateOrganization(Long id, OrganizationRequestDto request) {
         return ResponseEntity.ok(organizationService.update(id, request));
     }
+
+    @Override
+    public ResponseEntity<List<OrganizationResponseDto>> getAvailableOrganizations() {
+        return ResponseEntity.ok(organizationService.getAvailableOrganizations());
+    }
 }
