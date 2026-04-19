@@ -17,13 +17,6 @@ const IconArrow = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const IconCopy = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-    <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" />
-    <rect x="4" y="4" width="11" height="11" rx="2" stroke="currentColor" />
-  </svg>
-);
-
 type Lang = "et" | "en";
 
 type Props = {
@@ -34,8 +27,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
   const [lang, setLang] = useState<Lang>("et");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-
-  // avoids hydration mismatch (server doesn't know window.location)
   const [tableUrl, setTableUrl] = useState("");
 
   useEffect(() => {
@@ -72,7 +63,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
         shareHint: "Invite a friend to the same table order.",
         copy: "Copy link",
         share: "Share",
-
         copied: "Link copied ✅",
         shareFail: "Share failed (copy the link).",
         qrLoading: "QR loading…",
@@ -82,7 +72,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
     return dict[lang];
   }, [lang]);
 
-  // QR generation
   useEffect(() => {
     let alive = true;
 
@@ -108,7 +97,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
     };
   }, [tableUrl]);
 
-  // toast auto-hide
   useEffect(() => {
     if (!toast) return;
     const tmr = window.setTimeout(() => setToast(null), 2000);
@@ -146,21 +134,8 @@ export default function ClientTablePageClient({ tableCode }: Props) {
       lang={lang}
       onLangChange={setLang}
       toast={toast}
-      actions={<ThemeToggle />}>
-      {/* table card 
-      <section className={`${panelClass} p-4`}>
-        <div className="text-sm text-black/60 dark:text-white/60">
-          {t.youOrderTo}
-        </div>
-
-        <div className="mt-2 flex flex-col gap-1">
-          <div className="text-lg font-semibold tracking-wide text-black/90 dark:text-white/90">
-            {tableCode}
-          </div>
-        </div>
-      </section>*/}
-
-      {/* CTA */}
+      actions={<ThemeToggle />}
+      logoHref={`/c/${encodeURIComponent(tableCode)}/menu`}>
       <a
         href={`/c/${encodeURIComponent(tableCode)}/menu`}
         className="mt-8 block">
@@ -187,7 +162,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {/* important */}
         <div className={`${panelClass} p-4`}>
           <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-black/55 dark:text-white/55">
             {t.important}
@@ -204,7 +178,6 @@ export default function ClientTablePageClient({ tableCode }: Props) {
           </ul>
         </div>
 
-        {/* share */}
         <div className={`${panelClass} p-4`}>
           <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-black/55 dark:text-white/55">
             {t.shareTitle}
@@ -215,6 +188,7 @@ export default function ClientTablePageClient({ tableCode }: Props) {
 
           <div className="mt-4 grid grid-cols-1 gap-3">
             <button
+              type="button"
               onClick={onShare}
               className="
                 inline-flex items-center justify-center gap-2

@@ -5,18 +5,6 @@ import React, { ReactNode, useEffect, useState } from "react";
 
 type Lang = "et" | "en";
 
-const IconSpark = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-    <path
-      d="M12 2l1.8 4.6L18 8.4l-4.2 1.8L12 15l-1.8-4.8L6 8.4l4.2-1.8L12 2z"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-// Light/Dark-aware panel styling
 export const panelClass =
   "rounded-2xl border border-black/10 bg-white/90 text-[#070A12] backdrop-blur-md shadow-[0_18px_70px_rgba(0,0,0,0.08)] dark:border-white/[0.06] dark:bg-[#070A12]/95 dark:text-white dark:shadow-[0_18px_70px_rgba(0,0,0,0.6)]";
 
@@ -54,7 +42,6 @@ export function ThemeToggle() {
   );
 
   useEffect(() => {
-    // Use saved theme if available, otherwise fall back to system
     const saved = window.localStorage.getItem("theme");
     const systemPrefersDark =
       window.matchMedia &&
@@ -81,7 +68,6 @@ export function ThemeToggle() {
     });
   };
 
-  // Prevent hydration mismatch / flicker
   if (!mounted) return null;
 
   const isDark = theme === "dark";
@@ -110,8 +96,10 @@ type Props = {
   lang: Lang;
   onLangChange: (l: Lang) => void;
   toast?: string | null;
-  actions?: ReactNode; // render next to language toggle
+  actions?: ReactNode;
   children: ReactNode;
+  onLogoClick?: () => void;
+  logoHref?: string;
 };
 
 export default function ClientShell({
@@ -122,14 +110,29 @@ export default function ClientShell({
   toast,
   actions,
   children,
+  onLogoClick,
+  logoHref,
 }: Props) {
+  const logoImage = (
+    <Image
+      src="/tudengibaarlogo.png"
+      alt={brand}
+      width={220}
+      height={72}
+      priority
+      className="
+        h-9 sm:h-10 w-auto -mt-[2px] opacity-95
+        drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]
+        dark:drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]
+        invert dark:invert-0
+      "
+    />
+  );
+
   return (
-    // ✅ Set readable defaults for BOTH themes
     <main className="relative min-h-screen overflow-hidden bg-white text-[#070A12] dark:bg-[#070A12] dark:text-white">
-      {/* DARK background layers only (hide in light theme) */}
       <div className="pointer-events-none absolute inset-0 z-0 hidden bg-[#070A12] dark:block" />
 
-      {/* background: sweep gradient (dark only) */}
       <div className="pointer-events-none absolute inset-0 z-0 hidden dark:block">
         <div
           className="
@@ -147,17 +150,14 @@ export default function ClientShell({
         />
       </div>
 
-      {/* background: radial spotlight (dark only) */}
       <div className="pointer-events-none absolute inset-0 z-0 hidden dark:block">
         <div className="absolute inset-0 bg-[radial-gradient(60%_40%_at_50%_20%,rgba(255,255,255,0.06)_0%,rgba(7,10,18,0)_72%)]" />
       </div>
 
-      {/* ✅ Optional: subtle light background texture (helps “empty white” feel) */}
       <div className="pointer-events-none absolute inset-0 z-0 dark:hidden">
         <div className="absolute inset-0 bg-[radial-gradient(60%_40%_at_50%_20%,rgba(0,0,0,0.05)_0%,rgba(255,255,255,0)_72%)]" />
       </div>
 
-      {/* toast */}
       {toast && (
         <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2">
           <div className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm text-black/85 backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white/85">
@@ -168,36 +168,38 @@ export default function ClientShell({
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl items-start justify-center px-4 py-4">
         <div className="w-full max-w-md sm:max-w-xl">
-          {/* header */}
           <header className="mb-5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              {/* Top row: logo */}
               <div className="flex items-center gap-3">
-                <Image
-                  src="/tudengibaarlogo.png"
-                  alt="Tudengibaar"
-                  width={220}
-                  height={72}
-                  priority
-                  className="
-                      h-9 sm:h-10 w-auto -mt-[2px] opacity-95
-                      drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]
-                      dark:drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]
-                      invert dark:invert-0
-                    "
-                />
+                {logoHref ? (
+                  <a
+                    href={logoHref}
+                    className="flex items-center gap-3 rounded-xl outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                    aria-label="Go to menu">
+                    {logoImage}
+                  </a>
+                ) : onLogoClick ? (
+                  <button
+                    type="button"
+                    onClick={onLogoClick}
+                    className="flex items-center gap-3 rounded-xl outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                    aria-label="Go to menu">
+                    {logoImage}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3">{logoImage}</div>
+                )}
               </div>
 
-              {/* ✅ Ensure title is dark in light mode, light in dark mode */}
               <h1 className="mt-3 ml-4 text-2xl font-semibold leading-tight text-[#070A12]/90 dark:text-white/92">
                 {title}
               </h1>
             </div>
 
-            {/* Right side: language toggle + actions */}
             <div className="shrink-0 flex items-center gap-2">
               <div className="inline-flex rounded-full border border-black/10 bg-black/5 p-1 dark:border-white/10 dark:bg-white/5">
                 <button
+                  type="button"
                   onClick={() => onLangChange("et")}
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                     lang === "et"
@@ -207,6 +209,7 @@ export default function ClientShell({
                   ET
                 </button>
                 <button
+                  type="button"
                   onClick={() => onLangChange("en")}
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                     lang === "en"
@@ -221,7 +224,6 @@ export default function ClientShell({
             </div>
           </header>
 
-          {/* ✅ Make sure children inherit correct text color in light mode */}
           <div className="text-[#070A12] dark:text-white">{children}</div>
         </div>
       </div>
