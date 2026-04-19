@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import ClientShell, { panelClass, ThemeToggle } from "../ClientShell";
+import { backendUrl } from "@/utils/constants";
+import { CreateOrderRequest } from "@/app/generated/models/CreateOrderRequest";
 
 type Lang = "et" | "en";
 type View =
@@ -359,6 +361,7 @@ export default function ClientMenuPageClient() {
   const [personalCode, setPersonalCode] = useState("");
   const [smartErr, setSmartErr] = useState<string | null>(null);
   const [smartReason, setSmartReason] = useState<SmartIdReason>("checkout");
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [createAccountWithSmartId, setCreateAccountWithSmartId] =
     useState(false);
@@ -639,6 +642,22 @@ export default function ClientMenuPageClient() {
   }, [selectedOrder, submittedOrders]);
 
   useEffect(() => {
+    const cookies = document.cookie.split(";").map(c => c.trim());
+    
+    const sessionCookies = cookies
+        .filter(c => c.startsWith("order_session_"))
+        .map(c => ({
+            name: c.split("=")[0],
+            value: c.split("=")[1]
+        }));
+
+    if (sessionCookies.length === 0) return;
+
+    const newest = sessionCookies[sessionCookies.length - 1];
+    setSessionId(newest.value);
+}, []);
+
+  useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const q = sp.get("orgId");
     if (q && !Number.isNaN(Number(q))) setOrgId(Number(q));
@@ -778,27 +797,6 @@ export default function ClientMenuPageClient() {
     setView("orderStatus");
   };
 
-  const createSubmittedOrder = () => {
-    const lines: SubmittedOrderLine[] = cartLines.map((x) => ({
-      id: x.id,
-      name: x.name,
-      qty: x.qty,
-      sum: x.sum,
-      unitPrice: x.unitPrice,
-    }));
-
-    const newOrder: SubmittedOrder = {
-      id: `ORD-${Date.now()}`,
-      createdAt: Date.now(),
-      total: cartTotal,
-      status: "received",
-      lines,
-    };
-
-    setSubmittedOrders((prev) => [newOrder, ...prev]);
-    setSelectedOrderId(newOrder.id);
-  };
-
   const goCheckout = () => {
     if (cartCount === 0) return;
 
@@ -911,51 +909,136 @@ export default function ClientMenuPageClient() {
   const PrimaryPill =
     "inline-flex items-center justify-center gap-2 rounded-full bg-blue-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition disabled:opacity-40 disabled:hover:bg-blue-500/90";
 
+  /* ---------------- Checkout ---------------- */
   useEffect(() => {
     if (view !== "checkout") return;
 
     setCheckoutStep(0);
 
-    const t1 = window.setTimeout(() => setCheckoutStep(1), 900);
-    const t2 = window.setTimeout(() => setCheckoutStep(2), 1900);
-    const t3 = window.setTimeout(() => {
-      createSubmittedOrder();
-      clearCart();
-      setView("confirm");
-    }, 3400);
+    const sendOrder = async () => {
+      try {
+        const payload = {
+          desk: null,
+          clientName: "Guest",
+          products: cartLines.map((line) => ({
+            productId: Number(line.id),
+            quantity: line.qty,
+          })),
+          state: "ORDER_CONFIRMED",
+          total: cartTotal,
+        } as CreateOrderRequest;
 
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
+        setCheckoutStep(1);
+
+        const res = await fetch("/api/backend/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Order failed: ${res.status} — ${errText}`);
+        }
+
+        const data = await res.json();
+        setSessionId(data.sessionId);
+        console.log(data.sessionId)
+        const backendOrderId = String(data.id);
+
+        const lines: SubmittedOrderLine[] = cartLines.map((x) => ({
+          id: x.id,
+          name: x.name,
+          qty: x.qty,
+          sum: x.sum,
+          unitPrice: x.unitPrice,
+        }));
+
+        const newOrder: SubmittedOrder = {
+          id: backendOrderId,
+          createdAt: new Date(data.createdAt).getTime(),
+          total: data.total,
+          status: mapBackendState(data.state),
+          lines,
+        };
+
+        setSubmittedOrders((prev) => [...prev, newOrder]);
+        setSelectedOrderId(backendOrderId);
+
+        setCheckoutStep(2);
+
+        await new Promise((r) => setTimeout(r, 800));
+
+        clearCart();
+        setView("confirm");
+      } catch (e) {
+        console.error(e);
+        setView("order");
+      }
     };
-  }, [view, cartLines, cartTotal]);
+
+    sendOrder();
+  }, [view]);
 
   useEffect(() => {
-    if (view !== "orderStatus" || !orderStatusOrder) return;
+    if (!sessionId) return;
 
-    if (orderStatusOrder.status === "received") {
-      const t = window.setTimeout(() => {
-        setSubmittedOrders((prev) =>
-          prev.map((o) =>
-            o.id === orderStatusOrder.id ? { ...o, status: "processing" } : o,
-          ),
-        );
-      }, 2500);
-      return () => window.clearTimeout(t);
-    }
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 
-    if (orderStatusOrder.status === "processing") {
-      const t = window.setTimeout(() => {
+    const formattedBackendUrl = backendUrl?.replace(/^https?:\/\//, "");
+    const ws = new WebSocket(
+      `${protocol}://${formattedBackendUrl}/ws/order-status?token=${sessionId}`
+    );
+
+    ws.onopen = () => {
+      console.log("WS connected for table:", sessionId);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const update = JSON.parse(event.data);
+
         setSubmittedOrders((prev) =>
-          prev.map((o) =>
-            o.id === orderStatusOrder.id ? { ...o, status: "finished" } : o,
-          ),
+          prev.map((o) => {
+            return Number(o.id) === update.orderId 
+              ? {...o, status: mapBackendState(update.status) ?? update.status,}
+              : o
+          }
+          )
         );
-      }, 4000);
-      return () => window.clearTimeout(t);
+      } catch (e) {
+        console.error("WS parse error", e);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket closed for table:", sessionId);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [sessionId]);
+
+  const mapBackendState = (state: string): OrderStatus => {
+    switch (state) {
+      case "ORDER_CONFIRMED":
+        return "received";
+      case "IN_MAKING":
+        return "processing";
+      case "READY_FOR_PICKUP":
+        return "finished";
+      case "ORDER_COMPLETE":
+        return "finished";
+      default:
+        return "received";
     }
-  }, [view, orderStatusOrder]);
+  };
 
   return (
     <ClientShell
