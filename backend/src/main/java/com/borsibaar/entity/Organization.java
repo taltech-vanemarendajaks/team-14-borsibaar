@@ -22,8 +22,8 @@ public class Organization {
     private String name;
 
     @ElementCollection
-    @CollectionTable(name = "organization_auth_emails", joinColumns = @JoinColumn(name = "organization_id"))
-    @Column(name = "email")
+    @CollectionTable(name = "organization_auth_emails", joinColumns = @JoinColumn(name = "organization_id", nullable = false))
+    @Column(name = "email", nullable = false)
     private List<String> authEmails = new ArrayList<>();
 
     @Column(name = "created_at")

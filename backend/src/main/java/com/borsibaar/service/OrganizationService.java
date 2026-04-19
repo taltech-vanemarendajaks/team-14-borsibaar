@@ -3,7 +3,6 @@ package com.borsibaar.service;
 import com.borsibaar.dto.OrganizationRequestDto;
 import com.borsibaar.dto.OrganizationResponseDto;
 import com.borsibaar.entity.Organization;
-import com.borsibaar.entity.User;
 import com.borsibaar.mapper.OrganizationMapper;
 import com.borsibaar.repository.OrganizationRepository;
 import com.borsibaar.util.SecurityUtils;

@@ -102,6 +102,10 @@ export default function OnboardingPage() {
                 throw new Error("Selected organization is invalid");
             }
 
+            if (!acceptTerms) {
+                throw new Error("You must accept the Terms & Privacy Policy");
+            }
+
             const confirmed = window.confirm(
                 `Are you sure you want to join "${selectedOrg.name}"?`
             );
@@ -116,7 +120,7 @@ export default function OnboardingPage() {
                 credentials: "include",
                 body: JSON.stringify({
                     organizationId,
-                    acceptTerms: true,
+                    acceptTerms,
                 }),
             });
 
