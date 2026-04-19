@@ -878,7 +878,6 @@ components:
     CreateOrderRequest:
       type: object
       required:
-        - desk
         - clientName
         - products
         - sessionId
@@ -900,8 +899,6 @@ components:
           type: string
           format: uuid
           nullable: true
-        sessionId:
-          type: string
         state:
           $ref: '#/components/schemas/OrderState'
         total:

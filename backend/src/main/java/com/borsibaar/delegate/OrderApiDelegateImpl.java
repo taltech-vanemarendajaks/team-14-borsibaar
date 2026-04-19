@@ -5,6 +5,7 @@ import com.borsibaar.dto.CreateOrderRequestDto;
 import com.borsibaar.dto.OrderResponseDto;
 import com.borsibaar.dto.UpdateOrderRequestDto;
 import com.borsibaar.service.OrderService;
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,20 @@ public class OrderApiDelegateImpl extends AbstractApiDelegateImpl implements Ord
 
     @Override
     public ResponseEntity<OrderResponseDto> createOrder(CreateOrderRequestDto createOrderRequestDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.create(createOrderRequestDto));
+        OrderResponseDto orderResponseDto = orderService.create(createOrderRequestDto);
+
+        String sessionId = orderResponseDto.getSessionId();
+        if (sessionId == null) {
+            throw new IllegalStateException("Missing session Id");
+        }
+
+        Cookie cookie = new Cookie("session_" + sessionId, sessionId);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(24 * 60 * 60); // 1 day
+        response.addCookie(cookie);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(orderResponseDto);
     }
 
     @Override

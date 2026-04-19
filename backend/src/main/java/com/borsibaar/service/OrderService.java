@@ -1,20 +1,15 @@
 package com.borsibaar.service;
 
-import com.borsibaar.dto.CreateOrderRequestDto;
-import com.borsibaar.dto.OrderProductRequestDto;
-import com.borsibaar.dto.OrderProductResponseDto;
-import com.borsibaar.dto.OrderResponseDto;
-import com.borsibaar.dto.OrderStateDto;
-import com.borsibaar.dto.UpdateOrderRequestDto;
+import com.borsibaar.dto.*;
 import com.borsibaar.entity.Order;
 import com.borsibaar.entity.OrderProduct;
 import com.borsibaar.entity.Product;
 import com.borsibaar.entity.User;
-import com.borsibaar.repository.OrderProductRepository;
 import com.borsibaar.repository.OrderRepository;
 import com.borsibaar.repository.ProductRepository;
 import com.borsibaar.repository.UserRepository;
 import com.borsibaar.util.SecurityUtils;
+import com.borsibaar.ws.OrderStatusPusher;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.http.HttpStatus;
@@ -25,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,9 +28,9 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderProductRepository orderProductRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final OrderStatusPusher orderStatusPusher;
 
     @Transactional(readOnly = true)
     public List<OrderResponseDto> getAll() {
@@ -54,23 +48,32 @@ public class OrderService {
     @Transactional
     public OrderResponseDto create(CreateOrderRequestDto request) {
         Order order = new Order();
-        applyRequest(order, request.getDesk(), request.getClientName(), unwrapNullable(request.getUserId()), request.getSessionId(),
+        String sessionId = UUID.randomUUID().toString();
+        User currentUser = SecurityUtils.getCurrentUserOrNull();
+        UUID userId = currentUser != null ? currentUser.getId() : null;
+
+        applyRequest(order, request.getDesk(), request.getClientName(), userId, sessionId,
                 request.getState(), request.getTotal(), null, true);
 
-        Order saved = orderRepository.save(order);
-        replaceProducts(saved.getId(), request.getProducts());
-        return toDto(getOrder(saved.getId()));
+        orderRepository.save(order);
+        replaceProducts(order.getId(), request.getProducts());
+        return toDto(getOrder(order.getId()));
     }
 
     @Transactional
     public OrderResponseDto update(Long id, UpdateOrderRequestDto request) {
         Order order = getOrder(id);
+        Order.OrderState oldState = order.getState();
         applyRequest(order, request.getDesk(), request.getClientName(), unwrapNullable(request.getUserId()), request.getSessionId(),
                 request.getState(), request.getTotal(), request.getAssignedWorkerId(), false);
         orderRepository.save(order);
 
         if (request.getProducts() != null && !request.getProducts().isEmpty()) {
             replaceProducts(order.getId(), request.getProducts());
+        }
+
+        if (request.getState() != null && !oldState.toString().equals(request.getState().toString())) {
+            orderStatusPusher.push(order.getSessionId(), order.getId(), request.getState().toString());
         }
 
         return toDto(getOrder(order.getId()));
@@ -99,7 +102,7 @@ public class OrderService {
             boolean creating
     ) {
         if (desk != null || creating) {
-            order.setDesk(requireNonBlank(desk, "desk"));
+            order.setDesk(desk);
         }
         if (clientName != null || creating) {
             order.setClientName(requireNonBlank(clientName, "clientName"));
@@ -140,7 +143,8 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "products must contain at least one item");
         }
 
-        orderProductRepository.deleteByOrderId(orderId);
+        Order order = getOrder(orderId);
+        order.getProducts().clear();
 
         List<OrderProduct> orderProducts = new ArrayList<>();
         for (OrderProductRequestDto productRequest : productRequests) {
@@ -149,17 +153,17 @@ public class OrderService {
                             "Product not found: " + productRequest.getProductId()));
 
             OrderProduct orderProduct = new OrderProduct();
+            orderProduct.setOrder(order);
             orderProduct.setOrderId(orderId);
             orderProduct.setProductId(product.getId());
             orderProduct.setQuantity(productRequest.getQuantity());
             orderProduct.setProductName(product.getName());
             orderProduct.setUnitPrice(product.getBasePrice());
             orderProducts.add(orderProduct);
+            order.getProducts().add(orderProduct);
         }
 
-        orderProductRepository.saveAll(orderProducts);
-        Order order = getOrder(orderId);
-        order.setProducts(new HashSet<>(orderProductRepository.findByOrderId(orderId)));
+        orderRepository.save(order);
     }
 
     private OrderResponseDto toDto(Order order) {
