@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import ClientShell, { panelClass, ThemeToggle } from "../ClientShell";
 import { backendUrl } from "@/utils/constants";
-import { CreateOrderRequest } from "@/app/generated/models/CreateOrderRequest";
+
 
 type Lang = "et" | "en";
 type View =
@@ -727,17 +727,30 @@ export default function ClientMenuPageClient({ tableCode }: { tableCode: string 
       try {
         const res = await fetch("/api/backend/orders", { cache: "no-store" });
         if (!res.ok) return;
-        const allOrders = await res.json();
+        type OrderPayload = {
+          id: number;
+          sessionId: string;
+          createdAt?: string;
+          total?: number;
+          state?: string;
+          products?: Array<{
+            productId: number;
+            productName?: string;
+            quantity: number;
+            unitPrice: number;
+          }>;
+        };
+        const allOrders: OrderPayload[] = await res.json();
         
-        const myOrders = allOrders.filter((o: any) => o.sessionId === sessionId);
+        const myOrders = allOrders.filter((o) => o.sessionId === sessionId);
         
         if (myOrders.length > 0) {
-          const restoredOrders: SubmittedOrder[] = myOrders.map((data: any) => ({
+          const restoredOrders: SubmittedOrder[] = myOrders.map((data) => ({
             id: String(data.id),
             createdAt: data.createdAt ? new Date(data.createdAt).getTime() : Date.now(),
             total: data.total ?? 0,
             status: mapBackendState(data.state ?? "ORDER_CONFIRMED"),
-            lines: (data.products || []).map((p: any) => ({
+            lines: (data.products || []).map((p) => ({
               id: String(p.productId),
               name: p.productName || "Toode",
               qty: p.quantity,
