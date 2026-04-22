@@ -330,6 +330,8 @@ export default function OrdersPage() {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchOrders = async () => {
       try {
         const [ordersResponse, workerResponse] = await Promise.all([
@@ -340,6 +342,8 @@ export default function OrdersPage() {
             cache: "no-store",
           }),
         ]);
+
+        if (!isMounted) return;
 
         if (!ordersResponse.ok) {
           if (ordersResponse.status === 404) {
@@ -367,15 +371,22 @@ export default function OrdersPage() {
 
         setError(null);
       } catch (err) {
+        if (!isMounted) return;
         setError(
           err instanceof Error ? err.message : "Failed to fetch orders"
         );
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchOrders();
+    const intervalId = setInterval(fetchOrders, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, []);
 
   const updateOrderState = async (orderId: number, nextState: OrderState) => {
