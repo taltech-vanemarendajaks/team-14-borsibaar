@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import ClientShell, { panelClass, ThemeToggle } from "../ClientShell";
 import { backendUrl } from "@/utils/constants";
+import { OrderSession } from "@/app/generated/models/OrderSession";
 
 
 type Lang = "et" | "en";
@@ -705,23 +706,29 @@ export default function ClientMenuPageClient({ tableCode }: { tableCode: string 
   }, [submittedOrders]);
 
   useEffect(() => {
-    const cookies = document.cookie.split(";").map(c => c.trim());
+    const getSessionId = async () => {
+      try {
+        const res = await fetch("/api/backend/sessions", { cache: "no-store" });
+        if (!res.ok) return;
+        const sessions: OrderSession[] = await res.json();
+
+        if (sessions.length === 0) return;
+
+        const orderedSessions = sessions.sort((a, b) => a.createdTime - b.createdTime)
+
+        const newest = orderedSessions[orderedSessions.length - 1];
+        setSessionId(newest.sessionId);
+      } catch (e) {
+        console.error("Failed to recover orders", e);
+      }
+    };
     
-    const sessionCookies = cookies
-        .filter(c => c.startsWith("session_"))
-        .map(c => ({
-            name: c.split("=")[0],
-            value: c.split("=")[1]
-        }));
-
-    if (sessionCookies.length === 0) return;
-
-    const newest = sessionCookies[sessionCookies.length - 1];
-    setSessionId(newest.value);
+    getSessionId();
   }, []);
 
   useEffect(() => {
     if (!sessionId || submittedOrders.length > 0) return;
+
 
     const recoverOrder = async () => {
       try {

@@ -16,6 +16,7 @@ docs/OnboardingRequest.md
 docs/OrderProductRequest.md
 docs/OrderProductResponse.md
 docs/OrderResponse.md
+docs/OrderSession.md
 docs/OrderState.md
 docs/OrganizationRequest.md
 docs/OrganizationResponse.md
@@ -47,6 +48,7 @@ models/OnboardingRequest.ts
 models/OrderProductRequest.ts
 models/OrderProductResponse.ts
 models/OrderResponse.ts
+models/OrderSession.ts
 models/OrderState.ts
 models/OrganizationRequest.ts
 models/OrganizationResponse.ts
