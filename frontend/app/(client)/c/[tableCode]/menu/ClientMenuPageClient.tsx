@@ -351,7 +351,7 @@ function isAlcoholCategory(categoryName: string) {
   return alcoholCats.some((k) => s.includes(k));
 }
 
-export default function ClientMenuPageClient() {
+export default function ClientMenuPageClient({ tableCode }: { tableCode: string }) {
   const [lang, setLang] = useState<Lang>("et");
   const [view, setView] = useState<View>("menu");
 
@@ -708,7 +708,7 @@ export default function ClientMenuPageClient() {
     const cookies = document.cookie.split(";").map(c => c.trim());
     
     const sessionCookies = cookies
-        .filter(c => c.startsWith("order_session_"))
+        .filter(c => c.startsWith("session_"))
         .map(c => ({
             name: c.split("=")[0],
             value: c.split("=")[1]
@@ -718,7 +718,45 @@ export default function ClientMenuPageClient() {
 
     const newest = sessionCookies[sessionCookies.length - 1];
     setSessionId(newest.value);
-}, []);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId || submittedOrders.length > 0) return;
+
+    const recoverOrder = async () => {
+      try {
+        const res = await fetch("/api/backend/orders", { cache: "no-store" });
+        if (!res.ok) return;
+        const allOrders = await res.json();
+        
+        const myOrders = allOrders.filter((o: any) => o.sessionId === sessionId);
+        
+        if (myOrders.length > 0) {
+          const restoredOrders: SubmittedOrder[] = myOrders.map((data: any) => ({
+            id: String(data.id),
+            createdAt: data.createdAt ? new Date(data.createdAt).getTime() : Date.now(),
+            total: data.total ?? 0,
+            status: mapBackendState(data.state ?? "ORDER_CONFIRMED"),
+            lines: (data.products || []).map((p: any) => ({
+              id: String(p.productId),
+              name: p.productName || "Toode",
+              qty: p.quantity,
+              sum: p.quantity * p.unitPrice,
+              unitPrice: p.unitPrice,
+            })),
+          }));
+          
+          setSubmittedOrders(restoredOrders);
+          setSelectedOrderId(restoredOrders[restoredOrders.length - 1].id);
+          setView("orderStatus");
+        }
+      } catch (e) {
+        console.error("Failed to recover orders", e);
+      }
+    };
+    
+    recoverOrder();
+  }, [sessionId, submittedOrders.length]);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -898,28 +936,7 @@ export default function ClientMenuPageClient() {
     setView("orderStatus");
   };
 
-  const createSubmittedOrder = () => {
-    const lines: SubmittedOrderLine[] = cartLines.map((x) => ({
-      id: x.id,
-      name: x.name,
-      qty: x.qty,
-      sum: x.sum,
-      unitPrice: x.unitPrice,
-    }));
 
-    const newOrder: SubmittedOrder = {
-      id: `ORD-${Date.now()}`,
-      createdAt: Date.now(),
-      total: cartTotal,
-      status: "received",
-      lines,
-    };
-
-    setSubmittedOrders((prev) => [newOrder, ...prev]);
-    setSelectedOrderId(newOrder.id);
-
-    return newOrder.id;
-  };
 
   const goCheckout = () => {
     if (cartCount === 0) return;
@@ -1051,16 +1068,31 @@ export default function ClientMenuPageClient() {
   useEffect(() => {
     if (view !== "checkout") return;
 
-    setCheckoutStep(0);
+    let cancelled = false;
 
-    const t1 = window.setTimeout(() => setCheckoutStep(1), 900);
-    const t2 = window.setTimeout(() => setCheckoutStep(2), 1900);
-    const t3 = window.setTimeout(() => {
-      const newOrderId = createSubmittedOrder();
-      clearCart();
-      setSelectedOrderId(newOrderId);
-      setView("orderStatus");
-    }, 3400);
+    const sendOrder = async () => {
+      setCheckoutStep(0);
+
+      const body = {
+        desk: tableCode,
+        clientName: "Guest",
+        state: "ORDER_CONFIRMED",
+        total: cartTotal,
+        products: cartLines.map((x) => ({
+          productId: Number(x.id),
+          quantity: x.qty,
+        })),
+      };
+
+      try {
+        setCheckoutStep(1);
+
+        const res = await fetch("/api/backend/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
 
         if (!res.ok) {
           const errText = await res.text();
@@ -1068,43 +1100,67 @@ export default function ClientMenuPageClient() {
         }
 
         const data = await res.json();
-        setSessionId(data.sessionId);
-        console.log(data.sessionId)
-        const backendOrderId = String(data.id);
 
-        const lines: SubmittedOrderLine[] = cartLines.map((x) => ({
-          id: x.id,
-          name: x.name,
-          qty: x.qty,
-          sum: x.sum,
-          unitPrice: x.unitPrice,
-        }));
+        if (cancelled) return;
+
+        // sessionId from the response wires up the WebSocket listener
+        if (data.sessionId) setSessionId(data.sessionId);
+
+        const backendOrderId = String(data.id);
 
         const newOrder: SubmittedOrder = {
           id: backendOrderId,
-          createdAt: new Date(data.createdAt).getTime(),
-          total: data.total,
-          status: mapBackendState(data.state),
-          lines,
+          createdAt: data.createdAt ? new Date(data.createdAt).getTime() : Date.now(),
+          total: data.total ?? cartTotal,
+          status: mapBackendState(data.state ?? "ORDER_CONFIRMED"),
+          lines: cartLines.map((x) => ({
+            id: x.id,
+            name: x.name,
+            qty: x.qty,
+            sum: x.sum,
+            unitPrice: x.unitPrice,
+          })),
         };
 
-        setSubmittedOrders((prev) => [...prev, newOrder]);
+        setSubmittedOrders((prev) => [newOrder, ...prev]);
         setSelectedOrderId(backendOrderId);
-
         setCheckoutStep(2);
 
         await new Promise((r) => setTimeout(r, 800));
 
+        if (cancelled) return;
+
         clearCart();
-        setView("confirm");
+        setView("orderStatus");
       } catch (e) {
-        console.error(e);
+        if (cancelled) return;
+        console.error("Order error:", e);
+        setErr(e instanceof Error ? e.message : "Failed to place order");
         setView("order");
       }
     };
 
     sendOrder();
+
+    return () => {
+      cancelled = true;
+    };
   }, [view]);
+
+  const mapBackendState = (state: string): OrderStatus => {
+    switch (state) {
+      case "ORDER_CONFIRMED":
+        return "received";
+      case "IN_MAKING":
+        return "processing";
+      case "READY_FOR_PICKUP":
+        return "finished";
+      case "ORDER_COMPLETE":
+        return "finished";
+      default:
+        return "received";
+    }
+  };
 
   useEffect(() => {
     if (!sessionId) return;
@@ -1150,20 +1206,7 @@ export default function ClientMenuPageClient() {
     };
   }, [sessionId]);
 
-  const mapBackendState = (state: string): OrderStatus => {
-    switch (state) {
-      case "ORDER_CONFIRMED":
-        return "received";
-      case "IN_MAKING":
-        return "processing";
-      case "READY_FOR_PICKUP":
-        return "finished";
-      case "ORDER_COMPLETE":
-        return "finished";
-      default:
-        return "received";
-    }
-  };
+
 
   return (
     <ClientShell
@@ -1284,17 +1327,7 @@ export default function ClientMenuPageClient() {
                       ? "text-green-500"
                       : "text-blue-500"
                   }`}>
-                  {personalCode.length === 0
-                    ? lang === "et"
-                      ? "Sisesta 11 numbrit"
-                      : "Enter 11 digits"
-                    : personalCode.length < 11
-                      ? lang === "et"
-                        ? `${personalCode.length} / 11 • veel ${11 - personalCode.length} numbrit`
-                        : `${personalCode.length} / 11 • ${11 - personalCode.length} digits left`
-                      : lang === "et"
-                        ? "11 / 11 • valmis"
-                        : "11 / 11 • ready"}
+                  {personalCode.length} / 11
                 </div>
 
                 <label className="mt-2 flex items-start gap-3 rounded-2xl border border-black/10 bg-black/5 p-3 text-sm dark:border-white/10 dark:bg-white/5">
