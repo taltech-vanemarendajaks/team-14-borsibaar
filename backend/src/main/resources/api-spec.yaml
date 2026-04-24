@@ -69,6 +69,21 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserSummaryResponse'
+  /sessions:
+    get:
+      tags:
+        - session
+      summary: Get order sessions
+      operationId: getSessions
+      responses:
+        200:
+          description: Got order session
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSession'
   /bar-stations:
     get:
       tags:
@@ -1538,3 +1553,14 @@ components:
           type: string
         role:
           type: string
+    OrderSession:
+      type: object
+      required:
+        - sessionId
+        - createdTime
+      properties:
+        sessionId:
+          type: string
+        createdTime:
+          type: integer
+          format: int64

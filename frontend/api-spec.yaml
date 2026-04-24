@@ -587,3 +587,14 @@ components:
         unitPrice:
           type: number
           format: double
+    OrderSession:
+      type: object
+      required:
+        - sessionId
+        - createdTime
+      properties:
+        sessionId:
+          type: string
+        createdTime:
+          type: integer
+          format: int64

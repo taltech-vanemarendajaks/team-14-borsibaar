@@ -34,8 +34,11 @@ public class OrderApiDelegateImpl extends AbstractApiDelegateImpl implements Ord
             throw new IllegalStateException("Missing session Id");
         }
 
-        Cookie cookie = new Cookie("session_" + sessionId, sessionId);
+        String cookieValue = sessionId + "|" + System.currentTimeMillis();
+        Cookie cookie = new Cookie("session_" + sessionId, cookieValue);
         cookie.setSecure(true);
+        cookie.setHttpOnly(true);
+        cookie.setAttribute("SameSite", "Strict");
         cookie.setPath("/");
         cookie.setMaxAge(24 * 60 * 60); // 1 day
         response.addCookie(cookie);
