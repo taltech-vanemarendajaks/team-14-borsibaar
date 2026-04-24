@@ -32,7 +32,11 @@ public class SessionApiDelegateImpl extends AbstractApiDelegateImpl implements S
                 }
 
                 session.setSessionId(valueParts[0]);
-                session.createdTime(Long.parseLong(valueParts[1]));
+                try {
+                    session.createdTime(Long.parseLong(valueParts[1]));
+                } catch (NumberFormatException ex) {
+                    throw new IllegalStateException("Invalid order session cookie. Created time is not a valid long", ex);
+                }
                 sessions.add(session);
             }
         }
