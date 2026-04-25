@@ -136,7 +136,7 @@ public class DebugAutoLoginFilter extends OncePerRequestFilter {
 
             // If this was a request to root, redirect to frontend
             if ("/".equals(uri)) {
-                String redirect = user.getOrganizationId() == null ? "/onboarding" : "/dashboard";
+                String redirect = user.getOrganizationId() == null ? "/worker/onboarding" : "/worker/dashboard";
                 response.sendRedirect(frontendUrl + redirect);
                 return;
             }
