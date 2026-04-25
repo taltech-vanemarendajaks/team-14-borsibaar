@@ -44,7 +44,7 @@ public class AuthApiDelegateImpl extends AbstractApiDelegateImpl implements Auth
         cookie.setMaxAge(24 * 60 * 60); // 1 day
         response.addCookie(cookie);
 
-        String redirect = result.needsOnboarding() ? "/onboarding" : "/dashboard";
+        String redirect = result.needsOnboarding() ? "/worker/onboarding" : "/worker/dashboard";
 
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(frontendUrl + redirect)).build();
     }

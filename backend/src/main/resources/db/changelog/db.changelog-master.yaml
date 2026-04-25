@@ -1397,3 +1397,43 @@ databaseChangeLog:
             columns:
               - column:
                   name: product_id
+  - changeSet:
+      id: 024-create-organization-auth-emails
+      author: edvar
+      changes:
+        - createTable:
+            tableName: organization_auth_emails
+            columns:
+              - column:
+                  name: organization_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_organization_auth_emails
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_organization_auth_emails
+        - addForeignKeyConstraint:
+            baseTableName: organization_auth_emails
+            baseColumnNames: organization_id
+            referencedTableName: organizations
+            referencedColumnNames: id
+            constraintName: fk_organization_auth_emails_organization
+            onDelete: CASCADE
+        - createIndex:
+            tableName: organization_auth_emails
+            indexName: idx_organization_auth_emails_email
+            columns:
+              - column:
+                  name: email
+        - createIndex:
+            tableName: organization_auth_emails
+            indexName: idx_organization_auth_emails_organization_id
+            columns:
+              - column:
+                  name: organization_id
