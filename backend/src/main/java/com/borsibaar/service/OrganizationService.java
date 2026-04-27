@@ -5,6 +5,7 @@ import com.borsibaar.dto.OrganizationResponseDto;
 import com.borsibaar.entity.Organization;
 import com.borsibaar.mapper.OrganizationMapper;
 import com.borsibaar.repository.OrganizationRepository;
+import com.borsibaar.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -54,5 +55,20 @@ public class OrganizationService {
         organization.setUpdatedAt(Instant.now());
         Organization saved = organizationRepository.save(organization);
         return organizationMapper.toResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizationResponseDto> getAvailableOrganizations() {
+        String userEmail = SecurityUtils.getCurrentUser(false).getEmail().trim().toLowerCase();
+
+        return organizationRepository.findAll().stream()
+                .filter(org -> org.getAuthEmails() != null &&
+                        org.getAuthEmails().stream()
+                                .filter(email -> email != null && !email.isBlank())
+                                .map(String::trim)
+                                .map(String::toLowerCase)
+                                .anyMatch(userEmail::equals))
+                .map(organizationMapper::toResponse)
+                .toList();
     }
 }

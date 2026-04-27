@@ -23,11 +23,13 @@ async function fetchUser(req: NextRequest) {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
   if (!pathname.startsWith("/worker")) {
     return NextResponse.next();
   }
 
   const user = await fetchUser(req);
+  const hasOrg = !!user?.organization;
 
   // /worker/login redirects if authenticated
   if (pathname.startsWith("/worker/login")) {
@@ -37,8 +39,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protected routes
+  // 1. NOT LOGGED IN → only login allowed
   if (!user) {
+    if (isLogin) return NextResponse.next();
     return NextResponse.redirect(new URL("/worker/login", req.url));
   }
 
