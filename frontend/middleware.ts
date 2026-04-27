@@ -32,9 +32,7 @@ export async function middleware(req: NextRequest) {
   // /worker/login redirects if authenticated
   if (pathname.startsWith("/worker/login")) {
     if (user) {
-      return NextResponse.redirect(
-        new URL(user.needsOnboarding ? "/worker/onboarding" : "/worker/dashboard", req.url)
-      );
+      return NextResponse.redirect(new URL("/worker/dashboard", req.url));
     }
     return NextResponse.next();
   }
@@ -44,17 +42,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/worker/login", req.url));
   }
 
-  if (
-    (pathname.startsWith("/dashboard") || pathname.startsWith("/pos")) &&
-    !pathname.startsWith("/worker/onboarding") &&
-    user.needsOnboarding
-  ) {
-    return NextResponse.redirect(new URL("/worker/onboarding", req.url));
-  }
-
-  if (pathname.startsWith("/worker/onboarding") && user.needsOnboarding === false) {
-    return NextResponse.redirect(new URL("/worker/dashboard", req.url));
-  }
 
   return NextResponse.next();
 }
