@@ -31,8 +31,13 @@ export async function middleware(req: NextRequest) {
   const user = await fetchUser(req);
   const hasOrg = !!user?.organization;
 
-  const isLogin = pathname.startsWith("/worker/login");
-  const isOnboarding = pathname.startsWith("/worker/onboarding");
+  // /worker/login redirects if authenticated
+  if (pathname.startsWith("/worker/login")) {
+    if (user) {
+      return NextResponse.redirect(new URL("/worker/dashboard", req.url));
+    }
+    return NextResponse.next();
+  }
 
   // 1. NOT LOGGED IN → only login allowed
   if (!user) {
@@ -40,20 +45,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/worker/login", req.url));
   }
 
-  // 2. LOGGED IN + HAS ORG → block login/onboarding
-  if (hasOrg) {
-    if (isLogin || isOnboarding) {
-      return NextResponse.redirect(new URL("/worker/dashboard", req.url));
-    }
-    return NextResponse.next();
-  }
-
-  // 3. LOGGED IN BUT NO ORG → ONLY onboarding allowed
-  if (!hasOrg) {
-    if (isOnboarding) return NextResponse.next();
-
-    return NextResponse.redirect(new URL("/worker/onboarding", req.url));
-  }
 
   return NextResponse.next();
 }
