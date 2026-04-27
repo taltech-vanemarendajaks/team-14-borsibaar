@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const user = await fetchUser(req);
-  const hasOrg = !!user?.organization;
+  const hasOrg = !!user?.organizationId;
 
   const isLogin = pathname.startsWith("/worker/login");
   const isOnboarding = pathname.startsWith("/worker/onboarding");
