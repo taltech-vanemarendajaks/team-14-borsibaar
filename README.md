@@ -1,197 +1,317 @@
-# Iti0302-2026
+# Borsibaar
 
-## Project Overview
+Full-stack bar management web application.
 
-Börsibaar is a full-stack web application with a Spring Boot backend and Next.js frontend. It provides inventory management, transaction tracking, and price optimization features for stock bar themed events. There is also a public page for seeing drink prices in a format that is similar to the stock market.
+## Features Overview
+
+### Bar Staff
+
+- Manage staff user accounts
+- Manage bar stations
+- Manage inventory
+- View and process incoming orders
+- Use worker promo and games sections, which currently mix rough management screens and placeholder/demo content
+
+### Customer
+
+- Browse drinks and prices
+- Use table-specific client menu pages
+- Place customer orders through the public/table flow
+- Try demo customer login, age-verification, checkout, and parts of the order-status experience
+
+## Tech Stack
+
+- Backend: Spring Boot 3.5.5, Java 21, Maven, Spring Security, OAuth2, JWT
+- Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS 4, Radix UI
+- Database: PostgreSQL 17, Liquibase
+- API contract: OpenAPI Generator
+- Realtime: Spring WebSocket for order-status updates
+- Deployment assets: Docker Compose, Nginx, Helm charts
+
+## Repository Structure
+
+```text
+backend/                  Spring Boot API, business logic, persistence, and tests
+frontend/                 Next.js app, proxy routes, UI, and generated TypeScript client
+nginx/                    Reverse proxy configuration for production deployment
+helm/                     Helm charts for app, config, and Rancher deployment
+docker-compose.yaml       Local development stack
+docker-compose.prod.yaml  Production-oriented compose stack
+.sample.env               Draft environment variable template
+.github/                  GitHub workflows and repository metadata
+```
+
+## Main User Flows
+
+### Worker flows
+
+- `/worker/login` for authentication
+- `/worker/onboarding` for initial account setup
+- `/worker/dashboard` for organization info and sales stats
+- `/worker/inventory` for products, categories, stock changes, and history
+- `/worker/pos` for station selection and station administration
+- `/worker/orders` for order processing
+- `/worker/promo` for promotion management screens
+- `/worker/games` for the games section
+- `/worker/games/stock-market-bar` for the live TV pricing dashboard
+
+### Client/public flows
+
+- `/` opens a table/client view using the hardcoded default table code `Baar`
+- `/menu` provides a public menu page using the hardcoded default table code `Baar`
+- `/c/[tableCode]` and `/c/[tableCode]/menu` support table-specific client flows
 
 ## Architecture
 
-* **Backend**: Spring Boot 3.5.5 with Java 21, PostgreSQL database, Spring Security with OAuth2, JWT authentication
-* **Frontend**: Next.js with TypeScript, Tailwind CSS, Shadcn UI components
-* **Database**: PostgreSQL with Liquibase migrations
-* **Containerization**: Docker for development environment
+### Backend
+
+The backend follows a layered Spring structure:
+
+- `entity/` for JPA models
+- `repository/` for persistence
+- `service/` for business logic
+- `delegate/` for application-specific implementations of generated OpenAPI interfaces
+- `mapper/` for MapStruct mapping
+- `config/` for security, WebSocket, scheduling, and environment config
+- `jobs/` for scheduled jobs such as price correction
+- `ws/` for order-status WebSocket handling
+
+The backend API contract is defined using OpenAPI in:
+
+- `backend/src/main/resources/api-spec.yaml`
+
+Maven uses that spec to generate Spring API interfaces, and the classes in `delegate/` provide the application-specific implementations behind those generated interfaces.
+
+### Frontend
+
+The frontend uses the Next.js App Router with route groups:
+
+- `frontend/app/(worker)` for authenticated worker flows
+- `frontend/app/(client)` for client/table flows
+- `frontend/app/(public)` for public pages
+- `frontend/app/api/backend` as a proxy layer to the backend
+- `frontend/app/generated` for OpenAPI-generated TypeScript client code
+
+The frontend has its own OpenAPI generator input at `frontend/api-spec.yaml`. This is separate from the backend spec rather than a direct shared file. Running `npm run generate` uses that frontend-side spec to regenerate `frontend/app/generated`.
+
+In practice, the frontend currently uses the generated output mainly for TypeScript models and shared request/response shapes. Many actual HTTP calls are still written manually with `fetch`, either through `frontend/app/api/backend` proxy routes or direct server-side calls to the backend, so the generated frontend client is not the only integration path.
+
+Because of that split, the backend spec is the fuller source of truth for the API surface, while the frontend spec is a narrower duplicated contract used for frontend code generation and may drift if it is not updated alongside backend API changes.
+
+Middleware sits in front of all `/worker/*` routes. It checks the current session by calling the backend account endpoint with the incoming cookies, redirects unauthenticated users to `/worker/login`, sends already signed-in users away from the login page to either onboarding or the dashboard, and redirects users away from `/worker/onboarding` once setup is complete. The worker area is protected, but onboarding enforcement is not fully consistent across every worker route and should not be over-documented as stricter than the current code actually is.
+
+### Current Auth Model
+
+- Worker UI uses Google OAuth login plus backend session/cookie handling
+- Frontend middleware protects `/worker/*` routes and redirects unauthenticated users to `/worker/login`
+- Onboarding enforcement currently only checks some worker paths rather than every worker route
+- Public/client flows are intentionally more open: inventory/category reads, order creation, order reads, session lookups, and order-status WebSocket access are allowed without worker authentication
+- Debug auto-login exists for local development and should be treated as a development-only shortcut, not a real authentication mode
+
+## Quick Start
+
+### Option 1: Run the full local stack with Docker
+
+1. Create a root `.env` file.
+2. Fill in the required environment variables.
+3. Start the stack:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- PostgreSQL on `localhost:5432`
+- Backend on `localhost:8080`
+- Frontend on `localhost:3000`
+
+### Option 2: Run backend and frontend manually
+
+Start the database with Docker:
+
+```bash
+docker compose up postgres
+```
+
+Run the backend:
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+Run the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Environment Variables
+
+A starter `.sample.env` file is committed in the repository, but it is incomplete and should be treated as a draft template rather than a canonical source of truth. Create `.env` at the project root and fill in the values required for your chosen run mode.
+
+### Required in root `.env` for backend
+
+```env
+POSTGRES_DB=borsibaar
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/borsibaar
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=postgres
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+JWT_SECRET=generate-a-long-random-secret
+
+APP_CORS_ALLOWED_ORIGINS=http://localhost:3000
+APP_FRONTEND_URL=http://localhost:3000
+OAUTH2_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
+```
+
+### Local development and debug extras
+
+```env
+SPRING_PROFILES_ACTIVE=local
+
+DEBUG_AUTO_LOGIN=false
+DEBUG_EMAIL=debug@example.com
+DEBUG_NAME=Debug User
+```
+
+Notes:
+
+- `.sample.env` is currently missing some variables used by the app, especially `APP_CORS_ALLOWED_ORIGINS`, `APP_FRONTEND_URL`, and `OAUTH2_REDIRECT_URI`
+- In Docker development, compose maps `DEBUG_AUTO_LOGIN`, `DEBUG_EMAIL`, and `DEBUG_NAME` into the backend runtime variables `DEBUG_AUTO_LOGIN_ENABLED`, `DEBUG_AUTO_LOGIN_EMAIL`, and `DEBUG_AUTO_LOGIN_NAME`
+- `SPRING_PROFILES_ACTIVE=local` enables the local profile and is the profile expected for debug auto-login behavior
+
+### Provided by local Docker Compose
+
+- `SPRING_DATASOURCE_URL` is overridden in `docker-compose.yaml` to point at the `postgres` container
+- `BACKEND_URL` is set in the frontend container to `http://backend:8080`
+- `NEXT_PUBLIC_BACKEND_URL` is passed as a build arg for browser-side flows such as OAuth redirects
+
+### Frontend and proxy-related variables
+
+- `BACKEND_URL`
+  Server-side frontend URL for calling the backend inside Docker. In local compose this is set to `http://backend:8080`.
+- `NEXT_PUBLIC_BACKEND_URL`
+  Public backend URL used by browser-side flows such as OAuth redirects.
+- `NEXT_PUBLIC_DEBUG_AUTO_LOGIN`
+  Enables the frontend side of debug auto login behavior.
 
 ## Development Commands
 
-### Backend (Spring Boot)
-
-```bash
-# Run backend with Maven wrapper
-cd backend && ./mvnw spring-boot:run
-
-# Build backend
-cd backend && ./mvnw clean package
-
-# Run tests
-cd backend && ./mvnw test
-```
-
-### Frontend (Next.js)
-
-```bash
-# Development server with Turbopack
-cd frontend && npm run dev
-
-# Build for production
-cd frontend && npm run build
-
-# Start production server
-cd frontend && npm start
-
-# Lint code
-cd frontend && npm run lint
-```
-
-### Docker usage
-
-```bash
-# Start full development environment (DB and backend)
-docker compose up
-```
-
-## Key Backend Architecture
-
-The Spring Boot backend follows a layered architecture:
-
-* **Controllers** (`controller/`): REST API endpoints
-* **Services** (`service/`): Business logic layer
-* **Repositories** (`repository/`): Data access layer using Spring Data JPA
-* **Entities** (`entity/`): JPA entities mapping to database tables
-* **DTOs** (`dto/`): Request/Response data transfer objects
-* **Mappers** (`mapper/`): MapStruct mappers for entity-DTO conversion
-* **Config** (`config/`): Spring configuration classes
-
-Key technologies:
-
-* Spring Security with OAuth2 client
-* JWT tokens for authentication
-* Liquibase for database migrations
-* MapStruct for object mapping
-* Lombok for reducing boilerplate
-
-## Frontend Structure
-
-Next.js 15 application using the App Router:
-
-* **Pages**: `app/page.tsx` (landing), `app/dashboard/`, `app/login/`, `app/onboarding/`
-* **API Routes**: `app/api/` for backend integration
-* **Styling**: Tailwind CSS with custom components using Radix UI
-* **TypeScript**: Fully typed with strict configuration
-
-## Database
-
-PostgreSQL database configured via Docker. Environment variables are loaded from `.env` and `backend/.env` files.
-
-## Environment Setup
-
-1. Copy `.sample.env` to `.env` and configure credentials
-2. Use Docker for local development: `docker compose up`
-3. Start frontend by running `npm run dev` in the `frontend` directory
-
-### Sample `.env` (root)
-
-```env
-POSTGRES_DB=
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/{pane siia POSTGRES_DB nimi}
-SPRING_DATASOURCE_USERNAME=
-SPRING_DATASOURCE_PASSWORD=
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-JWT_SECRET="" # openssl rand -base64 32
-```
-
-## Sample Spring configuration (application.properties)
-
-`backend/src/main/resources/application.properties`
-
-```properties
-spring.application.name=Borsibaar
-
-spring.datasource.url=${SPRING_DATASOURCE_URL}
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-
-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
-spring.security.oauth2.client.registration.google.scope=openid,profile,email
-spring.security.oauth2.client.registration.google.redirect-uri={baseUrl}/login/oauth2/code/{registrationId}
-spring.security.oauth2.client.registration.google.client-name=Google
-
-spring.jpa.hibernate.ddl-auto=validate
-spring.jpa.open-in-view=false
-
-spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.yaml
-spring.liquibase.enabled=true
-spring.sql.init.mode=never
-
-jwt.secret=${JWT_SECRET}
-app.cors.allowed-origins=http://localhost:3000,http://127.0.0.1:3000
-app.frontend.url=http://localhost:3000
-
-server.forward-headers-strategy=framework
-```
-
-## Tech debt, things that could be improved
-
 ### Backend
-- **Inventory & pricing domain consistency, missing features**
-  _Packages: `backend/src/main/java/com/borsibaar/entity`, `service`, `repository`_
-  - Several services manually fetch related entities via repositories instead of navigating object graphs, which leads to extra queries and more complex code. Example from `InventoryService`: `getByOrganization` loads the `Product` for each `Inventory` via `productRepository.findById` instead of using a mapped association.
-  - Dynamic pricing / price correction logic exists (see PriceCorrectionJob and use of adjustedPrice in InventoryService), but it is not encapsulated in a dedicated domain service; behaviour is partly in jobs/services and partly implied by database state.
-  - Inventory currently stores both a `product_id` and an `organization_id`, while `Product` also has an `organization_id`. The duplication is convenient for queries but adds complexity and risk of inconsistency.
-    - A refactor should either:
-      - Make `Inventory` depend purely on `Product` (and navigate `product.organizationId`), or
-      - Clearly document and enforce the duplication via invariants / constraints.
-  - Create a **public item transaction history endpoint** (read‑only, requires auth for now) that exposes `InventoryTransaction` data per product and organization.
-  - Introduce a **price correction setting** on a per‑organization or per‑product basis (how often price correction runs, what lookback window to use).
-  - Enhance the dynamic pricing model with gamification features like “hype trains” (e.g. bursts of demand temporarily decreasing prices) and “market crashes” (sharp temporary drops) for a more stock‑market‑like experience.
 
-
-- **Validation & business rules on write paths**
-  _Packages: `controller`, `dto`, `service`_
-  - Many request DTOs lack comprehensive validation (e.g. negative prices, invalid quantity changes, inconsistent min/max/base prices, missing required fields).
-  - Inventory invariants (non‑negative stock, immutable transaction history, organization isolation) are enforced via a mix of DB constraints and ad‑hoc service code instead of a clearly defined domain boundary.
-
-- **Cross-cutting concerns & error handling**
-  _Packages: `exception`, `config`, `controller`_
-  - Controllers are not fully consistent in how they surface errors – some rely on default Spring exceptions / `ResponseStatusException`, others may use custom handlers; response shapes are not unified for all error cases.
-  - Some helper utilities (e.g. `SecurityUtils`) are used, but most authorization and tenant checks are still manual in each service/controller method.
-
-- **Tests and observability around core flows**
-  _Packages: `src/test/java`, application logging_
-  - Test coverage is decent for happy paths, but is missing many edge cases. There should be more “negative” tests (invalid inputs, concurrent updates, trying to operate on another organization’s data, deleted/inactive products, etc.).
-  - Logging is mostly technical (stack traces, generic messages) instead of structured domain events (who changed which product price, which station sold what, etc.).
-
+```bash
+cd backend
+./mvnw spring-boot:run
+./mvnw clean package
+./mvnw test
+```
 
 ### Frontend
-- **Inventory management UX & state model**
-  _File: `frontend/app/(protected)/(sidebar)/inventory/page.tsx`_
-  - The inventory page is a very large monolith that mixes data fetching, business rules, and complex UI (tables, dialogs, forms) in one file. This makes it harder to reason about and reuse.
-  - Input validation should be implemented (e.g. negative prices, empty names, duplicate names, min greater than max, etc.). This could go hand-in-hand with the shared DTOs/types with the backend.
-  - Several places rely on loose typing or `// @ts-expect-error` because shared DTO types from the backend are missing.  Introducing a shared contract layer or code‑generated types would be a big improvement.
-    - TypeScript type checking is currently relaxed/ignored for builds in `next.config.ts`; this should be fixed so the build fails on type errors.
-  - Sorting should be implemented in the inventory page product list view for better UX.
-  - There should be a way to change the current price so a drink can be made cheaper or more expensive manually (e.g. manual overrides on top of dynamic pricing).
 
-- **POS flows & client-facing views**
-  _Files: `frontend/app/(protected)/(sidebar)/pos/**`, `frontend/app/(protected)/client/page.tsx`_
-  - Station selection, product loading, cart building, and sale submission logic are tightly coupled to React component state and direct fetch calls, which makes it difficult to test or reuse this logic elsewhere (e.g. in hooks or service modules).
-  - The public/client pricing view still has implicit or hardcoded organization handling instead of a clear URL or query‑parameter contract for selecting the organization.
-  - Better UI responsiveness is needed so everything fits on screen even on smaller screens.
-  - Themed components for the public view (e.g. “stock ticker” style, event‑specific themes) would be a strong value add.
+```bash
+cd frontend
+npm install
+npm run dev
+npm run build
+npm start
+npm run lint
+```
 
-- **Error handling and auth boundary in the frontend**
-  _Files: `frontend/app/api/backend/**`, `frontend/middleware.ts`_
-  - There is no centralized helper or hook to distinguish “not logged in” from domain errors; each page handles fetch failures differently, leading to inconsistent UX.
-  - The user is not always redirected to the login page if they access a protected page without an active auth state; this should be enforced centrally (e.g. middleware + shared fetch helpers).
-  - Error messages are mostly inline; using toasts/snackbars or a common error banner component would improve UX and consistency.
+### Generate frontend API client
 
-- **Typing & shared contracts between frontend and backend**
-  _Modules: `frontend/app/**`, `frontend/utils/**`, backend DTO packages_
-  - TypeScript types are currently hand‑written and can drift out of sync with backend DTOs; there is no code generation or shared contract layer.
-  - Introducing generated types from OpenAPI / SpringDoc, or a shared package for DTO interfaces, would reduce duplication and runtime bugs.
+```bash
+cd frontend
+npm run generate
+```
+
+This uses `frontend/api-spec.yaml` and writes generated code to `frontend/app/generated`.
+
+Note that this generation step is separate from the backend Maven generation step, which uses `backend/src/main/resources/api-spec.yaml` to produce Spring interfaces for the backend implementation.
+
+## Testing
+
+Backend tests are present under `backend/src/test/java` and cover service and API delegate flows.
+
+Run them with:
+
+```bash
+cd backend
+./mvnw test
+```
+
+The frontend has linting configured, but the production build currently ignores TypeScript build errors in `frontend/next.config.ts`. Treat `npm run build` as a packaging check, not as a strict type-check or type-safety gate.
+
+There is no separate strict frontend type-check command currently documented in the repository scripts.
+
+## Deployment
+
+Production-oriented assets are included in the repository:
+
+- `docker-compose.prod.yaml` for a production compose stack
+- `nginx/` for reverse proxy configuration
+- `helm/` for Kubernetes/Helm deployment assets
+
+The production compose stack adds:
+
+- Nginx in front of frontend and backend
+- public URL configuration through environment variables
+
+## Order Sessions and Status Updates
+
+- Creating an order generates a session identifier and sets a `session_<id>` cookie
+- Order state updates can be pushed through the backend WebSocket endpoint at `/ws/order-status`
+- The current implementation supports customer-facing order tracking, but the surrounding UX is still partly demo/prototype-level on the frontend
+
+## Notes and Known Gaps
+
+- `frontend/README.md` is still the default Next.js boilerplate and does not describe this project.
+- The worker promo area has navigation shells and management-style screens, but it is not documented or validated as production-ready feature-complete functionality.
+- The worker games area mixes one real pricing-board view with mock/demo game screens.
+- Some UI text and labels still contain encoding issues and should be normalized to UTF-8.
+- The public `/` and `/menu` routes currently hardcode the table code `Baar` instead of deriving it dynamically.
+- The client pricing/menu flow currently contains hardcoded organization behavior and should be documented or made configurable before public rollout.
+- The customer flow contains demo implementations for Smart-ID, customer login/account creation, and checkout/payment UX.
+- WebSocket allowed origins for `/ws/order-status` are currently hardcoded and should be reviewed before wider deployment.
+
+## Current Status
+
+Implemented:
+
+- Google OAuth login for workers
+- Worker onboarding and protected routes
+- Organization dashboard with sales statistics
+- Inventory and category management
+- Product creation and stock transactions
+- POS station management and sales flow
+- Customer order queue for workers
+- Public/client live pricing and menu pages
+- Backend order session handling and order-status WebSocket support
+- OpenAPI-based frontend client generation
+
+Partially implemented or rough around the edges:
+
+- Worker route onboarding enforcement is present but not consistently applied across every worker route
+- Frontend production builds ignore TypeScript build errors
+- Some UI text still contains encoding issues
+- Frontend and backend API specs are split and can drift if not maintained together
+- Default public routes use a hardcoded table code
+- WebSocket allowed origins are hardcoded
+- `.sample.env` needs cleanup and adopt it as the canonical template. This should become the single source of truth for local setup and list all required variables with safe placeholder values and short comments. Right now the README documents variables that `.sample.env` does not contain, which makes setup drift easy.
+
+Prototype or placeholder:
+
+- Parts of promo management
+- Demo game screens outside the pricing-board view
+- Customer-side login/account flow
+- Customer-side age verification flow
+- Customer-side checkout/payment flow
+- Parts of the customer-side live order status experience
